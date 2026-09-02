@@ -1,10 +1,19 @@
+/* Catppuccin Mocha Color Palette */
 :root {
-    --bg: #161410;
-    --panel: #1e1b16;
-    --ink: #e6dfd0;
-    --muted: #8d8676;
-    --line: #3a362c;
-    --accent: #c9a227;
+    /* Mocha Background & Surface */
+    --bg: #1e1e2e;          /* mocha base (darker) */
+    --panel: #313244;        /* mocha surface0 */
+    --ink: #cdd6f4;          /* mocha text */
+    --muted: #a6adc8;        /* mocha subtext1 */
+    --line: #45475a;         /* mocha surface1 */
+    --accent: #89b4fa;       /* mocha blue (primary accent) */
+    
+    /* Additional Mocha Palette for variety */
+    --red: #f38ba8;          /* mocha red */
+    --green: #a6e3a1;        /* mocha green */
+    --yellow: #f9e2af;       /* mocha yellow */
+    --peach: #fab387;        /* mocha peach */
+    --lavender: #b4befe;     /* mocha lavender */
 }
 
 * {
@@ -68,16 +77,19 @@ h2 {
     display: inline-flex;
     align-items: center;
     background: var(--accent);
-    color: #1a160c;
+    color: var(--bg);
     padding: 8px 14px;
     font-size: 13px;
     font-weight: 650;
     cursor: pointer;
-    border: 1px solid #9a7a12;
+    border: 1px solid #7aa2f7;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
 .load-csv:hover {
-    filter: brightness(1.08);
+    filter: brightness(1.1);
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.3);
 }
 
 .load-csv input {
@@ -110,36 +122,49 @@ h2 {
 .table-container {
     background: var(--panel);
     border: 1px solid var(--line);
+    border-radius: 6px;
+    transition: all 0.2s ease;
 }
 
+.graph-card:hover,
+.table-container:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(137, 180, 250, 0.15);
+}
+
+/* IMPORTANT: Change from 3-column grid to 1-column */
 .graph-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 8px;
 }
 
+/* IMU grid also 1 column */
 .imu-grid {
     grid-template-columns: 1fr;
 }
 
 @media (min-width: 900px) {
     .imu-grid {
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr;
     }
 }
 
 .graph-card {
     padding: 12px 12px 8px;
+    cursor: pointer;
 }
 
 .graph-card h3 {
     font-size: 13px;
     font-weight: 600;
     margin-bottom: 8px;
+    color: var(--accent);
 }
 
 .chart-wrap {
     height: 210px;
+    cursor: pointer;
 }
 
 .imu-grid .chart-wrap {
@@ -185,6 +210,10 @@ tbody tr:last-child td {
     border-bottom: none;
 }
 
+tbody tr:hover {
+    background: var(--line);
+}
+
 .dataset-meta {
     margin-top: 8px;
     font-family: Consolas, "Cascadia Mono", monospace;
@@ -192,9 +221,23 @@ tbody tr:last-child td {
     color: var(--muted);
 }
 
+/* Additional styles for interactivity */
+.graph-card,
+.chart-wrap {
+    transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.graph-card:hover {
+    filter: brightness(1.05);
+}
+
+.chart-wrap:hover {
+    filter: brightness(1.03);
+}
+
 @media (max-width: 900px) {
     .graph-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
     }
 
     .imu-grid {
@@ -214,5 +257,13 @@ tbody tr:last-child td {
 
     body {
         padding: 12px;
+    }
+
+    header h1 {
+        font-size: 18px;
+    }
+
+    .chart-wrap {
+        height: 200px;
     }
 }
