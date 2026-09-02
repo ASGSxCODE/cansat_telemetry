@@ -1,0 +1,276 @@
+:root {
+    --bg: #161410;
+    --panel: #1e1b16;
+    --ink: #e6dfd0;
+    --muted: #8d8676;
+    --line: #3a362c;
+    --accent: #c9a227;
+    --ok: #7a9a4a;
+    --warn: #c45c4a;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 18px 22px 40px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid var(--accent);
+}
+
+.callsign {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    text-transform: uppercase;
+}
+
+header h1 {
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 2px 0 2px;
+}
+
+.subtitle,
+.overview-card span,
+.sensor-card p,
+h2 {
+    color: var(--muted);
+}
+
+.subtitle {
+    font-size: 13px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.load-csv {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent);
+    color: #1a160c;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    border: 1px solid #9a7a12;
+}
+
+.load-csv:hover {
+    filter: brightness(1.08);
+}
+
+.load-csv input {
+    display: none;
+}
+
+#file-name {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.live-status {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    border: 1px solid var(--line);
+    padding: 7px 10px;
+    background: var(--panel);
+}
+
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--muted);
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+section {
+    margin-bottom: 26px;
+}
+
+h2 {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.overview-card,
+.sensor-card,
+.graph-card,
+.table-container {
+    background: var(--panel);
+    border: 1px solid var(--line);
+}
+
+.overview-card {
+    padding: 12px 14px;
+}
+
+.overview-card span,
+.sensor-card p {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.overview-card strong,
+.sensor-card h3 {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-weight: 500;
+}
+
+.overview-card strong {
+    font-size: 16px;
+}
+
+.sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.sensor-card {
+    padding: 12px 14px;
+}
+
+.sensor-card.wide {
+    grid-column: span 1;
+}
+
+.sensor-card h3 {
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.graph-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.imu-grid {
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+    .imu-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+
+.graph-card {
+    padding: 12px 12px 8px;
+}
+
+.graph-card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.chart-wrap {
+    height: 210px;
+}
+
+.imu-grid .chart-wrap {
+    height: 240px;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+}
+
+th,
+td {
+    padding: 9px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+
+th {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+@media (max-width: 900px) {
+    .overview,
+    .sensor-grid,
+    .graph-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .imu-grid {
+        grid-template-columns: 1fr;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 520px) {
+    .overview,
+    .sensor-grid,
+    .graph-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body {
+        padding: 12px;
+    }
+}
