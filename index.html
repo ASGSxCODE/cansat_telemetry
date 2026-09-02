@@ -11,7 +11,7 @@
         <div class="brand">
             <p class="callsign">GS-01</p>
             <h1>CanSat Ground Station</h1>
-            <p class="subtitle">Upload a CSV to replay telemetry</p>
+            <p class="subtitle">Offline CSV analysis</p>
         </div>
 
         <div class="header-right">
@@ -20,64 +20,40 @@
                 Upload CSV
             </label>
             <p id="file-name">No file uploaded</p>
-            <div class="live-status">
-                <span class="status-dot" id="status-dot"></span>
-                <span id="live-label">STANDBY</span>
-            </div>
         </div>
     </header>
 
-    <section class="overview">
-        <div class="overview-card">
-            <span>System</span>
-            <strong id="system-status">STANDBY</strong>
-        </div>
-        <div class="overview-card">
-            <span>Link</span>
-            <strong id="communication-status">NO FILE</strong>
-        </div>
-        <div class="overview-card">
-            <span>Mission time</span>
-            <strong id="mission-time">00:00:00</strong>
-        </div>
-        <div class="overview-card">
-            <span>Packets</span>
-            <strong id="packet-count">0</strong>
-        </div>
-    </section>
-
     <section>
-        <h2>Sensors</h2>
-        <div class="sensor-grid">
-            <div class="sensor-card">
-                <p>Temperature</p>
-                <h3 id="temperature">—</h3>
-            </div>
-            <div class="sensor-card">
-                <p>Pressure</p>
-                <h3 id="pressure">—</h3>
-            </div>
-            <div class="sensor-card">
-                <p>Altitude</p>
-                <h3 id="altitude">—</h3>
-            </div>
-            <div class="sensor-card">
-                <p>Battery</p>
-                <h3 id="battery">—</h3>
-            </div>
-            <div class="sensor-card wide">
-                <p>Accelerometer</p>
-                <h3 id="accel">—</h3>
-            </div>
-            <div class="sensor-card wide">
-                <p>Gyroscope</p>
-                <h3 id="gyro">—</h3>
-            </div>
-            <div class="sensor-card wide">
-                <p>Magnetometer</p>
-                <h3 id="mag">—</h3>
-            </div>
+        <h2>Dataset extrema</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Quantity</th>
+                        <th>Maximum</th>
+                        <th>Minimum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Pressure</td>
+                        <td id="pressure-max">—</td>
+                        <td id="pressure-min">—</td>
+                    </tr>
+                    <tr>
+                        <td>Temperature</td>
+                        <td id="temperature-max">—</td>
+                        <td id="temperature-min">—</td>
+                    </tr>
+                    <tr>
+                        <td>Altitude</td>
+                        <td id="altitude-max">—</td>
+                        <td>—</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
+        <p id="dataset-meta" class="dataset-meta"></p>
     </section>
 
     <section>
@@ -125,28 +101,6 @@
                     <canvas id="magChart"></canvas>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section>
-        <h2>Packet log</h2>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Sample</th>
-                        <th>Time</th>
-                        <th>Temp</th>
-                        <th>Press</th>
-                        <th>Alt</th>
-                        <th>Rel alt</th>
-                        <th>Acc X/Y/Z</th>
-                        <th>Gyro X/Y/Z</th>
-                        <th>Mag X/Y/Z</th>
-                    </tr>
-                </thead>
-                <tbody id="telemetry-body"></tbody>
-            </table>
         </div>
     </section>
 
