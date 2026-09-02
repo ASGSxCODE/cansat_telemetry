@@ -1,6 +1,6 @@
 // ============================================================================
-// CanSat Telemetry Visualizer v2.0
-// Processes entire CSV instantly, plots all graphs, detects mission states
+// CanSat Telemetry Visualizer - CSV Parser & Graphing
+// Processes entire CSV instantly, plots all graphs
 // ============================================================================
 
 const csvFile = document.getElementById("csvFile");
@@ -11,9 +11,6 @@ const pressureMinEl = document.getElementById("pressure-min");
 const temperatureMaxEl = document.getElementById("temperature-max");
 const temperatureMinEl = document.getElementById("temperature-min");
 const altitudeMaxEl = document.getElementById("altitude-max");
-const co2MaxEl = document.getElementById("co2-max");
-const humidityMaxEl = document.getElementById("humidity-max");
-const missionStatesEl = document.getElementById("mission-states");
 
 const AXIS = {
     x: "#c45c4a",
@@ -23,7 +20,7 @@ const AXIS = {
 
 const tickColor = "#8d8676";
 const gridColor = "rgba(230, 223, 208, 0.08)";
-let lastParsedRows = []; // Store for exports
+let lastParsedRows = []; // Store for future use
 
 // ============================================================================
 // MISSION TIME FORMATTING
@@ -68,7 +65,6 @@ const eventMarkerPlugin = {
 
         const ctx = chart.ctx;
         const xScale = chart.scales.x;
-        const yScale = chart.scales.y;
 
         chart.events.forEach(function (event) {
             const x = xScale.getPixelForValue(event.index);
@@ -188,26 +184,6 @@ const pressureChart = createChart("pressureChart", "hPa", [{
     tension: 0.12
 }]);
 
-const co2Chart = createChart("co2Chart", "ppm", [{
-    label: "CO2",
-    data: [],
-    borderColor: "#a1643a",
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    pointRadius: 0,
-    tension: 0.12
-}]);
-
-const humidityChart = createChart("humidityChart", "%", [{
-    label: "Humidity",
-    data: [],
-    borderColor: "#2e8b9e",
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    pointRadius: 0,
-    tension: 0.12
-}]);
-
 const accelChart = createChart("accelChart", "g", xyzDatasets("Acc"));
 const gyroChart = createChart("gyroChart", "°/s", xyzDatasets("Gyro"));
 const magChart = createChart("magChart", "µT", xyzDatasets("Mag"));
@@ -321,7 +297,6 @@ function detectMissionStates(rows) {
         } else if (phase === "ascent" && previousAltitude != null && row.altitude < previousAltitude - 5) {
             descendingCount++;
             if (descendingCount > 3) {
-                // Consistent descent detected
                 states.descent = { index: index, time: row.timeMs, altitude: row.altitude };
                 phase = "descent";
                 descendingCount = 0;
@@ -346,7 +321,6 @@ function detectEvents(rows) {
     rows.forEach(function (row, index) {
         if (row.altitude != null && previousAltitude != null) {
             const altitudeDelta = row.altitude - previousAltitude;
-            // Sharp descent: altitude drop > 10m (tune as needed)
             if (altitudeDelta < -10) {
                 events.push({
                     index: index,
@@ -361,7 +335,6 @@ function detectEvents(rows) {
         }
     });
 
-    // Only keep first event (avoid noise)
     return events.length > 0 ? [events[0]] : [];
 }
 
@@ -431,7 +404,7 @@ function analyzeDataset(rows) {
         return;
     }
 
-    lastParsedRows = rows; // Store for export
+    lastParsedRows = rows;
 
     const labels = rows.map(function (row, index) {
         if (row.timeMs != null) {
@@ -446,39 +419,25 @@ function analyzeDataset(rows) {
     const altitude = rows.map(function (row) { return row.altitude; });
     const temperature = rows.map(function (row) { return row.temperature; });
     const pressure = rows.map(function (row) { return row.pressure; });
-    const co2 = rows.map(function (row) { return row.co2; });
-    const humidity = rows.map(function (row) { return row.humidity; });
 
     const pressureExtrema = extrema(pressure);
     const temperatureExtrema = extrema(temperature);
     const altitudeExtrema = extrema(altitude);
-    const co2Extrema = extrema(co2);
-    const humidityExtrema = extrema(humidity);
 
-    // Update UI with extrema values
     pressureMaxEl.textContent = formatValue(pressureExtrema.max, 2, "hPa");
     pressureMinEl.textContent = formatValue(pressureExtrema.min, 2, "hPa");
     temperatureMaxEl.textContent = formatValue(temperatureExtrema.max, 2, "°C");
     temperatureMinEl.textContent = formatValue(temperatureExtrema.min, 2, "°C");
     altitudeMaxEl.textContent = formatValue(altitudeExtrema.max, 2, "m");
-    co2MaxEl.textContent = formatValue(co2Extrema.max, 1, "ppm");
-    humidityMaxEl.textContent = formatValue(humidityExtrema.max, 1, "%");
 
     datasetMeta.textContent = rows.length + " samples";
 
-    // Detect mission states & events
-    const missionStates = detectMissionStates(rows);
     const events = detectEvents(rows);
+    detectMissionStates(rows); // For logging/debugging
 
-    // Display mission states
-    displayMissionStates(missionStates);
-
-    // Bind all charts with event markers
     bindChart(altitudeChart, labels, [altitude], events);
     bindChart(temperatureChart, labels, [temperature]);
     bindChart(pressureChart, labels, [pressure]);
-    bindChart(co2Chart, labels, [co2]);
-    bindChart(humidityChart, labels, [humidity]);
     bindChart(accelChart, labels, [
         rows.map(function (row) { return row.accX; }),
         rows.map(function (row) { return row.accY; }),
@@ -494,16 +453,6 @@ function analyzeDataset(rows) {
         rows.map(function (row) { return row.magY; }),
         rows.map(function (row) { return row.magZ; })
     ]);
-}
-
-function displayMissionStates(states) {
-    let html = "<div style='font-size: 12px; line-height: 1.6;'>";
-    html += "<strong>Mission Timeline:</strong><br>";
-    html += "🚀 Ascent: " + (states.ascent ? formatMissionTime(states.ascent.time) : "—") + "<br>";
-    html += "📉 Descent: " + (states.descent ? formatMissionTime(states.descent.time) : "—") + "<br>";
-    html += "🎯 Landing: " + (states.landed ? formatMissionTime(states.landed.time) : "—");
-    html += "</div>";
-    missionStatesEl.innerHTML = html;
 }
 
 // ============================================================================
@@ -565,64 +514,4 @@ function readCSVFile(file) {
     };
 
     reader.readAsText(file);
-}
-
-// ============================================================================
-// EXPORT ANALYSIS REPORT
-// ============================================================================
-
-function exportAnalysisReport(filename) {
-    if (lastParsedRows.length === 0) {
-        alert("No data to export. Upload a CSV first.");
-        return;
-    }
-
-    const rows = lastParsedRows;
-    const missionStates = detectMissionStates(rows);
-
-    const extremaData = {
-        pressure: extrema(rows.map(r => r.pressure)),
-        temperature: extrema(rows.map(r => r.temperature)),
-        altitude: extrema(rows.map(r => r.altitude)),
-        co2: extrema(rows.map(r => r.co2)),
-        humidity: extrema(rows.map(r => r.humidity))
-    };
-
-    let report = "=== CanSat Telemetry Analysis Report ===\n\n";
-    report += "Dataset: " + filename + "\n";
-    report += "Generated: " + new Date().toISOString() + "\n";
-    report += "Samples: " + rows.length + "\n";
-    report += "Duration: " + formatMissionTime(rows[rows.length - 1].timeMs || 0) + "\n\n";
-
-    report += "--- EXTREMA VALUES ---\n";
-    report += "Altitude:    " + formatValue(extremaData.altitude.max, 2, "m") + " (max) | " + formatValue(extremaData.altitude.min, 2, "m") + " (min)\n";
-    report += "Temperature: " + formatValue(extremaData.temperature.max, 2, "°C") + " (max) | " + formatValue(extremaData.temperature.min, 2, "°C") + " (min)\n";
-    report += "Pressure:    " + formatValue(extremaData.pressure.max, 2, "hPa") + " (max) | " + formatValue(extremaData.pressure.min, 2, "hPa") + " (min)\n";
-    report += "CO2:         " + formatValue(extremaData.co2.max, 1, "ppm") + " (max) | " + formatValue(extremaData.co2.min, 1, "ppm") + " (min)\n";
-    report += "Humidity:    " + formatValue(extremaData.humidity.max, 1, "%") + " (max) | " + formatValue(extremaData.humidity.min, 1, "%") + " (min)\n\n";
-
-    report += "--- MISSION TIMELINE ---\n";
-    report += "Ascent:  " + (missionStates.ascent ? formatMissionTime(missionStates.ascent.time) : "—") + "\n";
-    report += "Descent: " + (missionStates.descent ? formatMissionTime(missionStates.descent.time) : "—") + "\n";
-    report += "Landing: " + (missionStates.landed ? formatMissionTime(missionStates.landed.time) : "—") + "\n";
-
-    const blob = new Blob([report], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename.replace(".csv", "") + "_analysis.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-// Add export button listener
-if (document.getElementById("export-report")) {
-    document.getElementById("export-report").addEventListener("click", function () {
-        const file = csvFile.files[0];
-        if (!file) {
-            alert("Upload a CSV first");
-            return;
-        }
-        exportAnalysisReport(file.name);
-    });
 }
