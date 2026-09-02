@@ -55,7 +55,7 @@ function xyzDatasets(prefix) {
 }
 
 // ============================================================================
-// CHART CREATION (with event marker plugin)
+// CHART CREATION (with event marker plugin & tooltips)
 // ============================================================================
 
 const eventMarkerPlugin = {
@@ -80,7 +80,6 @@ const eventMarkerPlugin = {
             ctx.lineTo(x, yBottom);
             ctx.stroke();
 
-            // Label
             ctx.font = "10px Segoe UI";
             ctx.fillStyle = ctx.strokeStyle;
             ctx.textAlign = "center";
@@ -115,6 +114,34 @@ function createChart(canvasId, yTitle, datasets) {
                             font: {
                                 size: 11,
                                 family: "Segoe UI"
+                            }
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        mode: "index",
+                        intersect: false,
+                        backgroundColor: "rgba(22, 20, 16, 0.95)",
+                        titleColor: "#c9a227",
+                        bodyColor: "#e6dfd0",
+                        borderColor: "#3a362c",
+                        borderWidth: 1,
+                        padding: 10,
+                        titleFont: { size: 12, weight: 600 },
+                        bodyFont: { size: 12, family: "Consolas, monospace" },
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label;
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y != null) {
+                                    label += context.parsed.y.toFixed(2);
+                                }
+                                return label;
                             }
                         }
                     }
@@ -153,7 +180,130 @@ function createChart(canvasId, yTitle, datasets) {
     );
 }
 
-// Create all charts
+// ============================================================================
+// MODAL SYSTEM FOR EXPANDED GRAPHS
+// ============================================================================
+
+function createModalHTML() {
+    const modal = document.createElement("div");
+    modal.id = "chartModal";
+    modal.style.cssText = `
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    `;
+    modal.innerHTML = `
+        <div style="
+            background: var(--panel);
+            border: 1px solid var(--line);
+            width: 90%;
+            max-width: 1000px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 4px;
+        ">
+            <div style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 14px;
+                border-bottom: 1px solid var(--line);
+            ">
+                <h2 id="modalTitle" style="margin: 0; font-size: 16px; color: var(--ink);">Chart</h2>
+                <button id="closeModal" style="
+                    background: var(--accent);
+                    border: none;
+                    padding: 6px 12px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #1a160c;
+                ">Close (Esc)</button>
+            </div>
+            <div style="
+                flex: 1;
+                padding: 14px;
+                overflow: auto;
+            ">
+                <canvas id="expandedChart"></canvas>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+let expandedChartInstance = null;
+const chartModal = createModalHTML();
+
+function openChartModal(title, chartInstance) {
+    document.getElementById("modalTitle").textContent = title;
+    
+    // Destroy existing expanded chart if any
+    if (expandedChartInstance) {
+        expandedChartInstance.destroy();
+    }
+
+    const expandedCanvas = document.getElementById("expandedChart");
+    expandedChartInstance = new Chart(
+        expandedCanvas.getContext("2d"),
+        {
+            type: chartInstance.config.type,
+            data: JSON.parse(JSON.stringify(chartInstance.data)),
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+                plugins: chartInstance.config.options.plugins,
+                scales: chartInstance.config.options.scales
+            },
+            plugins: [eventMarkerPlugin]
+        }
+    );
+
+    chartModal.style.display = "flex";
+}
+
+function closeChartModal() {
+    chartModal.style.display = "none";
+    if (expandedChartInstance) {
+        expandedChartInstance.destroy();
+        expandedChartInstance = null;
+    }
+}
+
+// Close modal on Esc or close button
+document.getElementById("closeModal").addEventListener("click", closeChartModal);
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && chartModal.style.display === "flex") {
+        closeChartModal();
+    }
+});
+
+// Close on background click
+chartModal.addEventListener("click", function(e) {
+    if (e.target === chartModal) {
+        closeChartModal();
+    }
+});
+
+// ============================================================================
+// CREATE ALL CHARTS (with click handlers)
+// ============================================================================
+
+const chartsRegistry = {};
+
 const altitudeChart = createChart("altitudeChart", "m", [{
     label: "Altitude",
     data: [],
@@ -163,6 +313,7 @@ const altitudeChart = createChart("altitudeChart", "m", [{
     pointRadius: 0,
     tension: 0.12
 }]);
+chartsRegistry["altitudeChart"] = { chart: altitudeChart, title: "Altitude Profile" };
 
 const temperatureChart = createChart("temperatureChart", "°C", [{
     label: "Temperature",
@@ -173,6 +324,7 @@ const temperatureChart = createChart("temperatureChart", "°C", [{
     pointRadius: 0,
     tension: 0.12
 }]);
+chartsRegistry["temperatureChart"] = { chart: temperatureChart, title: "Temperature" };
 
 const pressureChart = createChart("pressureChart", "hPa", [{
     label: "Pressure",
@@ -183,10 +335,38 @@ const pressureChart = createChart("pressureChart", "hPa", [{
     pointRadius: 0,
     tension: 0.12
 }]);
+chartsRegistry["pressureChart"] = { chart: pressureChart, title: "Pressure" };
 
 const accelChart = createChart("accelChart", "g", xyzDatasets("Acc"));
+chartsRegistry["accelChart"] = { chart: accelChart, title: "Accelerometer (3-Axis)" };
+
 const gyroChart = createChart("gyroChart", "°/s", xyzDatasets("Gyro"));
+chartsRegistry["gyroChart"] = { chart: gyroChart, title: "Gyroscope (3-Axis)" };
+
 const magChart = createChart("magChart", "µT", xyzDatasets("Mag"));
+chartsRegistry["magChart"] = { chart: magChart, title: "Magnetometer (3-Axis)" };
+
+// Add click handlers to graph cards
+Object.keys(chartsRegistry).forEach(function(chartId) {
+    const card = document.querySelector(`[data-chart="${chartId}"]`);
+    if (!card) {
+        // Create wrapper if not exists
+        const canvas = document.getElementById(chartId);
+        if (canvas && canvas.parentElement) {
+            const wrapper = canvas.parentElement;
+            wrapper.style.cursor = "pointer";
+            wrapper.setAttribute("data-chart", chartId);
+            wrapper.addEventListener("click", function() {
+                openChartModal(chartsRegistry[chartId].title, chartsRegistry[chartId].chart);
+            });
+        }
+    } else {
+        card.style.cursor = "pointer";
+        card.addEventListener("click", function() {
+            openChartModal(chartsRegistry[chartId].title, chartsRegistry[chartId].chart);
+        });
+    }
+});
 
 // ============================================================================
 // CSV COLUMN MAPPING & PARSING
@@ -453,6 +633,70 @@ function analyzeDataset(rows) {
         rows.map(function (row) { return row.magY; }),
         rows.map(function (row) { return row.magZ; })
     ]);
+}
+
+// ============================================================================
+// INJECT MODAL STYLES
+// ============================================================================
+
+function injectModalStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+        #chartModal {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        #chartModal div {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .graph-card,
+        .chart-wrap {
+            cursor: pointer;
+            transition: filter 0.2s ease;
+        }
+
+        .graph-card:hover,
+        .chart-wrap:hover {
+            filter: brightness(1.05);
+        }
+
+        @media (max-width: 768px) {
+            #chartModal div {
+                width: 95%;
+                max-width: none;
+                height: 80vh;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Inject styles on load
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", injectModalStyles);
+} else {
+    injectModalStyles();
 }
 
 // ============================================================================
