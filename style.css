@@ -1,19 +1,17 @@
-/* Catppuccin Mocha Color Palette */
+/* Catppuccin Mocha with Blue Accent */
 :root {
-    /* Mocha Background & Surface */
-    --bg: #1e1e2e;          /* mocha base (darker) */
-    --panel: #313244;        /* mocha surface0 */
-    --ink: #cdd6f4;          /* mocha text */
-    --muted: #a6adc8;        /* mocha subtext1 */
-    --line: #45475a;         /* mocha surface1 */
-    --accent: #89b4fa;       /* mocha blue (primary accent) */
+    --bg: #1e1e2e;
+    --panel: #313244;
+    --ink: #cdd6f4;
+    --muted: #a6adc8;
+    --line: #45475a;
+    --accent: #89b4fa;
     
-    /* Additional Mocha Palette for variety */
-    --red: #f38ba8;          /* mocha red */
-    --green: #a6e3a1;        /* mocha green */
-    --yellow: #f9e2af;       /* mocha yellow */
-    --peach: #fab387;        /* mocha peach */
-    --lavender: #b4befe;     /* mocha lavender */
+    --red: #f38ba8;
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --peach: #fab387;
+    --lavender: #b4befe;
 }
 
 * {
@@ -118,6 +116,179 @@ h2 {
     margin-bottom: 10px;
 }
 
+/* ============================================================================
+   MISSION STATISTICS CARDS
+   ============================================================================ */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(137, 180, 250, 0.15);
+}
+
+.stat-card h3 {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 0;
+}
+
+/* ============================================================================
+   PLAYBACK CONTROLS
+   ============================================================================ */
+
+.playback-controls {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.play-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.play-btn:hover {
+    filter: brightness(1.1);
+}
+
+.time-slider {
+    flex: 1;
+    min-width: 200px;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.4);
+}
+
+.time-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.4);
+}
+
+#playbackTime {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 100px;
+}
+
+.speed-slider {
+    width: 60px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.speed-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+}
+
+#speedLabel {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 30px;
+}
+
+.playback-info {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.playback-info p {
+    margin: 4px 0;
+}
+
+#currentPhase {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ============================================================================
+   GRAPH CARDS & CHARTS
+   ============================================================================ */
+
 .graph-card,
 .table-container {
     background: var(--panel);
@@ -132,21 +303,19 @@ h2 {
     box-shadow: 0 0 12px rgba(137, 180, 250, 0.15);
 }
 
-/* IMPORTANT: Change from 3-column grid to 1-column */
 .graph-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
 }
 
-/* IMU grid also 1 column */
 .imu-grid {
     grid-template-columns: 1fr;
 }
 
 @media (min-width: 900px) {
     .imu-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
     }
 }
 
@@ -221,9 +390,9 @@ tbody tr:hover {
     color: var(--muted);
 }
 
-/* Additional styles for interactivity */
 .graph-card,
 .chart-wrap {
+    cursor: pointer;
     transition: filter 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -234,6 +403,10 @@ tbody tr:hover {
 .chart-wrap:hover {
     filter: brightness(1.03);
 }
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
 
 @media (max-width: 900px) {
     .graph-grid {
@@ -247,6 +420,23 @@ tbody tr:hover {
     header {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .playback-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .play-btn {
+        width: 100%;
+    }
+
+    .time-slider {
+        width: 100%;
     }
 }
 
@@ -265,5 +455,14 @@ tbody tr:hover {
 
     .chart-wrap {
         height: 200px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #playbackTime,
+    #speedLabel {
+        font-size: 11px;
     }
 }

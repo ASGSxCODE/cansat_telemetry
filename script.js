@@ -1,6 +1,6 @@
 // ============================================================================
-// CanSat Telemetry Visualizer - CSV Parser & Graphing
-// Processes entire CSV instantly, plots all graphs
+// CanSat Telemetry Visualizer v3.0 - Enhanced
+// CSV Parser & Graphing with Flight Analysis
 // ============================================================================
 
 const csvFile = document.getElementById("csvFile");
@@ -20,7 +20,15 @@ const AXIS = {
 
 const tickColor = "#8d8676";
 const gridColor = "rgba(230, 223, 208, 0.08)";
-let lastParsedRows = []; // Store for future use
+let lastParsedRows = [];
+
+// Playback state
+let playbackState = {
+    isPlaying: false,
+    currentIndex: 0,
+    speed: 1,
+    rows: []
+};
 
 // ============================================================================
 // MISSION TIME FORMATTING
@@ -55,7 +63,7 @@ function xyzDatasets(prefix) {
 }
 
 // ============================================================================
-// CHART CREATION (with event marker plugin & tooltips)
+// CHART CREATION
 // ============================================================================
 
 const eventMarkerPlugin = {
@@ -122,7 +130,7 @@ function createChart(canvasId, yTitle, datasets) {
                         mode: "index",
                         intersect: false,
                         backgroundColor: "rgba(22, 20, 16, 0.95)",
-                        titleColor: "#c9a227",
+                        titleColor: "#89b4fa",
                         bodyColor: "#e6dfd0",
                         borderColor: "#3a362c",
                         borderWidth: 1,
@@ -180,128 +188,7 @@ function createChart(canvasId, yTitle, datasets) {
     );
 }
 
-// ============================================================================
-// MODAL SYSTEM FOR EXPANDED GRAPHS
-// ============================================================================
-
-function createModalHTML() {
-    const modal = document.createElement("div");
-    modal.id = "chartModal";
-    modal.style.cssText = `
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 10000;
-        align-items: center;
-        justify-content: center;
-    `;
-    modal.innerHTML = `
-        <div style="
-            background: var(--panel);
-            border: 1px solid var(--line);
-            width: 90%;
-            max-width: 1000px;
-            height: 90vh;
-            display: flex;
-            flex-direction: column;
-            border-radius: 4px;
-        ">
-            <div style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 14px;
-                border-bottom: 1px solid var(--line);
-            ">
-                <h2 id="modalTitle" style="margin: 0; font-size: 16px; color: var(--ink);">Chart</h2>
-                <button id="closeModal" style="
-                    background: var(--accent);
-                    border: none;
-                    padding: 6px 12px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: #1a160c;
-                ">Close (Esc)</button>
-            </div>
-            <div style="
-                flex: 1;
-                padding: 14px;
-                overflow: auto;
-            ">
-                <canvas id="expandedChart"></canvas>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    return modal;
-}
-
-let expandedChartInstance = null;
-const chartModal = createModalHTML();
-
-function openChartModal(title, chartInstance) {
-    document.getElementById("modalTitle").textContent = title;
-    
-    // Destroy existing expanded chart if any
-    if (expandedChartInstance) {
-        expandedChartInstance.destroy();
-    }
-
-    const expandedCanvas = document.getElementById("expandedChart");
-    expandedChartInstance = new Chart(
-        expandedCanvas.getContext("2d"),
-        {
-            type: chartInstance.config.type,
-            data: JSON.parse(JSON.stringify(chartInstance.data)),
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: "index",
-                    intersect: false
-                },
-                plugins: chartInstance.config.options.plugins,
-                scales: chartInstance.config.options.scales
-            },
-            plugins: [eventMarkerPlugin]
-        }
-    );
-
-    chartModal.style.display = "flex";
-}
-
-function closeChartModal() {
-    chartModal.style.display = "none";
-    if (expandedChartInstance) {
-        expandedChartInstance.destroy();
-        expandedChartInstance = null;
-    }
-}
-
-// Close modal on Esc or close button
-document.getElementById("closeModal").addEventListener("click", closeChartModal);
-document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape" && chartModal.style.display === "flex") {
-        closeChartModal();
-    }
-});
-
-// Close on background click
-chartModal.addEventListener("click", function(e) {
-    if (e.target === chartModal) {
-        closeChartModal();
-    }
-});
-
-// ============================================================================
-// CREATE ALL CHARTS (with click handlers)
-// ============================================================================
-
+// Create all charts
 const chartsRegistry = {};
 
 const altitudeChart = createChart("altitudeChart", "m", [{
@@ -337,6 +224,62 @@ const pressureChart = createChart("pressureChart", "hPa", [{
 }]);
 chartsRegistry["pressureChart"] = { chart: pressureChart, title: "Pressure" };
 
+// NEW: Vertical Velocity Chart
+const velocityChart = createChart("velocityChart", "m/s", [{
+    label: "Vertical Velocity",
+    data: [],
+    borderColor: "#a6e3a1",
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension: 0.12
+}]);
+chartsRegistry["velocityChart"] = { chart: velocityChart, title: "Vertical Velocity" };
+
+// NEW: Acceleration Magnitude Chart
+const accelMagChart = createChart("accelMagChart", "g", [{
+    label: "Acceleration Magnitude",
+    data: [],
+    borderColor: "#fab387",
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension: 0.12
+}]);
+chartsRegistry["accelMagChart"] = { chart: accelMagChart, title: "Acceleration Magnitude" };
+
+// NEW: Orientation (Roll/Pitch/Yaw) Chart
+const orientationChart = createChart("orientationChart", "°", [
+    {
+        label: "Roll",
+        data: [],
+        borderColor: "#c45c4a",
+        backgroundColor: "transparent",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.12
+    },
+    {
+        label: "Pitch",
+        data: [],
+        borderColor: "#7a9a4a",
+        backgroundColor: "transparent",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.12
+    },
+    {
+        label: "Yaw",
+        data: [],
+        borderColor: "#5b86b5",
+        backgroundColor: "transparent",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.12
+    }
+]);
+chartsRegistry["orientationChart"] = { chart: orientationChart, title: "Roll / Pitch / Yaw" };
+
 const accelChart = createChart("accelChart", "g", xyzDatasets("Acc"));
 chartsRegistry["accelChart"] = { chart: accelChart, title: "Accelerometer (3-Axis)" };
 
@@ -345,28 +288,6 @@ chartsRegistry["gyroChart"] = { chart: gyroChart, title: "Gyroscope (3-Axis)" };
 
 const magChart = createChart("magChart", "µT", xyzDatasets("Mag"));
 chartsRegistry["magChart"] = { chart: magChart, title: "Magnetometer (3-Axis)" };
-
-// Add click handlers to graph cards
-Object.keys(chartsRegistry).forEach(function(chartId) {
-    const card = document.querySelector(`[data-chart="${chartId}"]`);
-    if (!card) {
-        // Create wrapper if not exists
-        const canvas = document.getElementById(chartId);
-        if (canvas && canvas.parentElement) {
-            const wrapper = canvas.parentElement;
-            wrapper.style.cursor = "pointer";
-            wrapper.setAttribute("data-chart", chartId);
-            wrapper.addEventListener("click", function() {
-                openChartModal(chartsRegistry[chartId].title, chartsRegistry[chartId].chart);
-            });
-        }
-    } else {
-        card.style.cursor = "pointer";
-        card.addEventListener("click", function() {
-            openChartModal(chartsRegistry[chartId].title, chartsRegistry[chartId].chart);
-        });
-    }
-});
 
 // ============================================================================
 // CSV COLUMN MAPPING & PARSING
@@ -412,7 +333,6 @@ function buildColumnMap(headerLine) {
         }
     });
 
-    // Fallback: auto-assign columns if not found
     if (map.sample == null) map.sample = 0;
     if (map.timeMs == null && headers.length > 1) map.timeMs = 1;
     if (map.temperature == null && headers.length > 2) map.temperature = 2;
@@ -453,45 +373,221 @@ function formatValue(value, digits, unit) {
 }
 
 // ============================================================================
-// MISSION STATE DETECTION
+// DERIVED CALCULATIONS
 // ============================================================================
 
-function detectMissionStates(rows) {
-    const states = {
-        groundIdle: null,
-        ascent: null,
-        descent: null,
-        landed: null
+function calculateVerticalVelocity(rows) {
+    const velocity = [];
+    let previousAltitude = null;
+    let previousTime = null;
+
+    rows.forEach(function (row) {
+        if (row.altitude != null && previousAltitude != null && previousTime != null && row.timeMs != null) {
+            const altDelta = row.altitude - previousAltitude;
+            const timeDelta = (row.timeMs - previousTime) / 1000; // convert to seconds
+            if (timeDelta > 0) {
+                velocity.push(altDelta / timeDelta);
+            } else {
+                velocity.push(null);
+            }
+        } else {
+            velocity.push(null);
+        }
+        previousAltitude = row.altitude;
+        previousTime = row.timeMs;
+    });
+
+    return velocity;
+}
+
+function calculateAccelerationMagnitude(rows) {
+    return rows.map(function (row) {
+        if (row.accX != null && row.accY != null && row.accZ != null) {
+            return Math.sqrt(row.accX * row.accX + row.accY * row.accY + row.accZ * row.accZ);
+        }
+        return null;
+    });
+}
+
+// NEW: Calculate Roll, Pitch, Yaw from IMU data
+function calculateOrientation(rows) {
+    return rows.map(function (row) {
+        if (row.accX == null || row.accY == null || row.accZ == null) {
+            return { roll: null, pitch: null, yaw: null };
+        }
+
+        // Roll: rotation around X-axis
+        const roll = Math.atan2(row.accY, row.accZ) * (180 / Math.PI);
+
+        // Pitch: rotation around Y-axis
+        const pitch = Math.atan2(-row.accX, Math.sqrt(row.accY * row.accY + row.accZ * row.accZ)) * (180 / Math.PI);
+
+        // Yaw: requires magnetometer data (Z-axis rotation)
+        let yaw = null;
+        if (row.magX != null && row.magY != null) {
+            yaw = Math.atan2(row.magY, row.magX) * (180 / Math.PI);
+        }
+
+        return { roll: roll, pitch: pitch, yaw: yaw };
+    });
+}
+
+// ============================================================================
+// FLIGHT PHASE DETECTION
+// ============================================================================
+
+function detectFlightPhases(rows) {
+    const phases = {
+        ascent: { start: null, end: null, duration: 0 },
+        descent: { start: null, end: null, duration: 0 },
+        apogee: { time: null, altitude: null },
+        landing: { time: null }
     };
 
-    let phase = "groundIdle";
-    let previousAltitude = null;
-    let descendingCount = 0;
+    let phase = "ground";
+    let maxAltitude = -Infinity;
+    let maxAltitudeIndex = -1;
 
     rows.forEach(function (row, index) {
         if (row.altitude == null) return;
 
-        if (phase === "groundIdle" && row.altitude > 10) {
-            states.ascent = { index: index, time: row.timeMs, altitude: row.altitude };
+        if (phase === "ground" && row.altitude > 10) {
+            phases.ascent.start = row.timeMs;
             phase = "ascent";
-        } else if (phase === "ascent" && previousAltitude != null && row.altitude < previousAltitude - 5) {
-            descendingCount++;
-            if (descendingCount > 3) {
-                states.descent = { index: index, time: row.timeMs, altitude: row.altitude };
-                phase = "descent";
-                descendingCount = 0;
-            }
+        } else if (phase === "ascent" && row.altitude > maxAltitude) {
+            maxAltitude = row.altitude;
+            maxAltitudeIndex = index;
+        } else if (phase === "ascent" && row.altitude < maxAltitude - 5) {
+            phases.ascent.end = row.timeMs;
+            phases.apogee.time = rows[maxAltitudeIndex].timeMs;
+            phases.apogee.altitude = maxAltitude;
+            phases.descent.start = row.timeMs;
+            phase = "descent";
         } else if (phase === "descent" && row.altitude < 5) {
-            states.landed = { index: index, time: row.timeMs, altitude: row.altitude };
+            phases.descent.end = row.timeMs;
+            phases.landing.time = row.timeMs;
             phase = "landed";
-        } else if (phase !== "ascent") {
-            descendingCount = 0;
         }
-
-        previousAltitude = row.altitude;
     });
 
-    return states;
+    if (phases.ascent.start && phases.ascent.end) {
+        phases.ascent.duration = (phases.ascent.end - phases.ascent.start) / 1000;
+    }
+    if (phases.descent.start && phases.descent.end) {
+        phases.descent.duration = (phases.descent.end - phases.descent.start) / 1000;
+    }
+
+    return phases;
+}
+
+// ============================================================================
+// MISSION STATISTICS DISPLAY
+// ============================================================================
+
+function displayMissionStatistics(rows, phases) {
+    const altitudeVals = rows.map(r => r.altitude).filter(v => v != null);
+    const velocityVals = calculateVerticalVelocity(rows).filter(v => v != null);
+    const accelVals = calculateAccelerationMagnitude(rows).filter(v => v != null);
+
+    const flightTime = rows[rows.length - 1].timeMs || 0;
+    const maxAlt = Math.max.apply(null, altitudeVals) || 0;
+    const maxVelocity = Math.max.apply(null, velocityVals.map(v => Math.abs(v))) || 0;
+    const peakAccel = Math.max.apply(null, accelVals) || 0;
+
+    document.getElementById("stat-flightTime").textContent = formatMissionTime(flightTime);
+    document.getElementById("stat-maxAlt").textContent = formatValue(maxAlt, 2, "m");
+    document.getElementById("stat-ascentTime").textContent = formatValue(phases.ascent.duration, 1, "s");
+    document.getElementById("stat-descentTime").textContent = formatValue(phases.descent.duration, 1, "s");
+    document.getElementById("stat-maxVelocity").textContent = formatValue(maxVelocity, 2, "m/s");
+    document.getElementById("stat-peakAccel").textContent = formatValue(peakAccel, 2, "g");
+}
+
+// ============================================================================
+// PLAYBACK SYSTEM
+// ============================================================================
+
+function setupPlaybackControls(rows) {
+    playbackState.rows = rows;
+    playbackState.currentIndex = 0;
+
+    const playBtn = document.getElementById("playBtn");
+    const timeSlider = document.getElementById("timeSlider");
+    const speedSlider = document.getElementById("speedSlider");
+
+    timeSlider.max = rows.length - 1;
+    timeSlider.value = 0;
+
+    playBtn.addEventListener("click", function () {
+        playbackState.isPlaying = !playbackState.isPlaying;
+        playBtn.textContent = playbackState.isPlaying ? "⏸ Pause" : "▶ Play";
+        if (playbackState.isPlaying) {
+            playbackAnimation();
+        }
+    });
+
+    timeSlider.addEventListener("input", function () {
+        playbackState.currentIndex = parseInt(this.value);
+        updatePlaybackDisplay();
+    });
+
+    speedSlider.addEventListener("input", function () {
+        playbackState.speed = parseFloat(this.value);
+        document.getElementById("speedLabel").textContent = playbackState.speed + "x";
+    });
+}
+
+function updatePlaybackDisplay() {
+    const row = playbackState.rows[playbackState.currentIndex];
+    if (!row) return;
+
+    const timeSlider = document.getElementById("timeSlider");
+    const currentTime = formatMissionTime(row.timeMs || 0);
+    const totalTime = formatMissionTime(playbackState.rows[playbackState.rows.length - 1].timeMs || 0);
+
+    document.getElementById("playbackTime").textContent = currentTime + " / " + totalTime;
+    document.getElementById("currentValues").textContent =
+        "Altitude: " + formatValue(row.altitude, 1, "m") + 
+        " | Temp: " + formatValue(row.temperature, 1, "°C") + 
+        " | Pressure: " + formatValue(row.pressure, 1, "hPa");
+
+    timeSlider.value = playbackState.currentIndex;
+
+    // Update chart vertical markers
+    Object.keys(chartsRegistry).forEach(function (chartId) {
+        const registry = chartsRegistry[chartId];
+        if (registry.chart && registry.chart.ctx) {
+            registry.chart.ctx.canvas.style.opacity = "0.5";
+        }
+    });
+}
+
+function playbackAnimation() {
+    if (!playbackState.isPlaying) return;
+
+    playbackState.currentIndex++;
+    if (playbackState.currentIndex >= playbackState.rows.length) {
+        playbackState.isPlaying = false;
+        document.getElementById("playBtn").textContent = "▶ Play";
+        return;
+    }
+
+    updatePlaybackDisplay();
+    updateOrientationViewer(playbackState.rows[playbackState.currentIndex]);
+
+    setTimeout(playbackAnimation, 50 / playbackState.speed);
+}
+
+// ============================================================================
+// CHART BINDING & DISPLAY
+// ============================================================================
+
+function bindChart(chart, labels, seriesList, events) {
+    chart.data.labels = labels;
+    seriesList.forEach(function (series, index) {
+        chart.data.datasets[index].data = series;
+    });
+    chart.events = events || [];
+    chart.update();
 }
 
 function detectEvents(rows) {
@@ -519,7 +615,98 @@ function detectEvents(rows) {
 }
 
 // ============================================================================
-// CSV PARSING & ANALYSIS
+// MAIN ANALYSIS FUNCTION
+// ============================================================================
+
+function analyzeDataset(rows) {
+    if (rows.length === 0) {
+        alert("No valid telemetry rows were found in the CSV.");
+        return;
+    }
+
+    lastParsedRows = rows;
+
+    const labels = rows.map(function (row, index) {
+        if (row.timeMs != null) {
+            return formatMissionTime(row.timeMs);
+        }
+        if (row.sample != null) {
+            return String(row.sample);
+        }
+        return String(index + 1);
+    });
+
+    const altitude = rows.map(function (row) { return row.altitude; });
+    const temperature = rows.map(function (row) { return row.temperature; });
+    const pressure = rows.map(function (row) { return row.pressure; });
+
+    // NEW: Calculate derived data
+    const velocity = calculateVerticalVelocity(rows);
+    const accelMag = calculateAccelerationMagnitude(rows);
+    const orientation = calculateOrientation(rows);
+    const roll = orientation.map(o => o.roll);
+    const pitch = orientation.map(o => o.pitch);
+    const yaw = orientation.map(o => o.yaw);
+
+    const pressureExtrema = extrema(pressure);
+    const temperatureExtrema = extrema(temperature);
+    const altitudeExtrema = extrema(altitude);
+
+    pressureMaxEl.textContent = formatValue(pressureExtrema.max, 2, "hPa");
+    pressureMinEl.textContent = formatValue(pressureExtrema.min, 2, "hPa");
+    temperatureMaxEl.textContent = formatValue(temperatureExtrema.max, 2, "°C");
+    temperatureMinEl.textContent = formatValue(temperatureExtrema.min, 2, "°C");
+    altitudeMaxEl.textContent = formatValue(altitudeExtrema.max, 2, "m");
+
+    datasetMeta.textContent = rows.length + " samples";
+
+    // NEW: Detect flight phases
+    const phases = detectFlightPhases(rows);
+    displayMissionStatistics(rows, phases);
+
+    const events = detectEvents(rows);
+
+    bindChart(altitudeChart, labels, [altitude], events);
+    bindChart(temperatureChart, labels, [temperature]);
+    bindChart(pressureChart, labels, [pressure]);
+    bindChart(velocityChart, labels, [velocity]);
+    bindChart(accelMagChart, labels, [accelMag]);
+    bindChart(orientationChart, labels, [roll, pitch, yaw]);
+    bindChart(accelChart, labels, [
+        rows.map(function (row) { return row.accX; }),
+        rows.map(function (row) { return row.accY; }),
+        rows.map(function (row) { return row.accZ; })
+    ]);
+    bindChart(gyroChart, labels, [
+        rows.map(function (row) { return row.gyroX; }),
+        rows.map(function (row) { return row.gyroY; }),
+        rows.map(function (row) { return row.gyroZ; })
+    ]);
+    bindChart(magChart, labels, [
+        rows.map(function (row) { return row.magX; }),
+        rows.map(function (row) { return row.magY; }),
+        rows.map(function (row) { return row.magZ; })
+    ]);
+
+    // NEW: Setup playback
+    setupPlaybackControls(rows);
+
+    // Add click handlers to graph cards
+    Object.keys(chartsRegistry).forEach(function (chartId) {
+        const canvas = document.getElementById(chartId);
+        if (canvas && canvas.parentElement) {
+            const wrapper = canvas.parentElement;
+            wrapper.style.cursor = "pointer";
+            wrapper.setAttribute("data-chart", chartId);
+            wrapper.addEventListener("click", function () {
+                openChartModal(chartsRegistry[chartId].title, chartsRegistry[chartId].chart);
+            });
+        }
+    });
+}
+
+// ============================================================================
+// CSV PARSING
 // ============================================================================
 
 function parseCSV(csvText) {
@@ -569,71 +756,121 @@ function parseCSV(csvText) {
     return rows;
 }
 
-function bindChart(chart, labels, seriesList, events) {
-    chart.data.labels = labels;
-    seriesList.forEach(function (series, index) {
-        chart.data.datasets[index].data = series;
-    });
-    chart.events = events || [];
-    chart.update();
+// ============================================================================
+// MODAL SYSTEM
+// ============================================================================
+
+function createModalHTML() {
+    const modal = document.createElement("div");
+    modal.id = "chartModal";
+    modal.style.cssText = `
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    `;
+    modal.innerHTML = `
+        <div style="
+            background: var(--panel);
+            border: 1px solid var(--line);
+            width: 90%;
+            max-width: 1000px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 6px;
+        ">
+            <div style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 14px;
+                border-bottom: 1px solid var(--line);
+            ">
+                <h2 id="modalTitle" style="margin: 0; font-size: 16px; color: var(--ink);">Chart</h2>
+                <button id="closeModal" style="
+                    background: var(--accent);
+                    border: none;
+                    padding: 6px 12px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--bg);
+                    border-radius: 4px;
+                ">Close (Esc)</button>
+            </div>
+            <div style="
+                flex: 1;
+                padding: 14px;
+                overflow: auto;
+            ">
+                <canvas id="expandedChart"></canvas>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
 }
 
-function analyzeDataset(rows) {
-    if (rows.length === 0) {
-        alert("No valid telemetry rows were found in the CSV.");
-        return;
+let expandedChartInstance = null;
+const chartModal = createModalHTML();
+
+function openChartModal(title, chartInstance) {
+    document.getElementById("modalTitle").textContent = title;
+    
+    if (expandedChartInstance) {
+        expandedChartInstance.destroy();
     }
 
-    lastParsedRows = rows;
-
-    const labels = rows.map(function (row, index) {
-        if (row.timeMs != null) {
-            return formatMissionTime(row.timeMs);
+    const expandedCanvas = document.getElementById("expandedChart");
+    expandedChartInstance = new Chart(
+        expandedCanvas.getContext("2d"),
+        {
+            type: chartInstance.config.type,
+            data: JSON.parse(JSON.stringify(chartInstance.data)),
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+                plugins: chartInstance.config.options.plugins,
+                scales: chartInstance.config.options.scales
+            },
+            plugins: [eventMarkerPlugin]
         }
-        if (row.sample != null) {
-            return String(row.sample);
-        }
-        return String(index + 1);
-    });
+    );
 
-    const altitude = rows.map(function (row) { return row.altitude; });
-    const temperature = rows.map(function (row) { return row.temperature; });
-    const pressure = rows.map(function (row) { return row.pressure; });
-
-    const pressureExtrema = extrema(pressure);
-    const temperatureExtrema = extrema(temperature);
-    const altitudeExtrema = extrema(altitude);
-
-    pressureMaxEl.textContent = formatValue(pressureExtrema.max, 2, "hPa");
-    pressureMinEl.textContent = formatValue(pressureExtrema.min, 2, "hPa");
-    temperatureMaxEl.textContent = formatValue(temperatureExtrema.max, 2, "°C");
-    temperatureMinEl.textContent = formatValue(temperatureExtrema.min, 2, "°C");
-    altitudeMaxEl.textContent = formatValue(altitudeExtrema.max, 2, "m");
-
-    datasetMeta.textContent = rows.length + " samples";
-
-    const events = detectEvents(rows);
-    detectMissionStates(rows); // For logging/debugging
-
-    bindChart(altitudeChart, labels, [altitude], events);
-    bindChart(temperatureChart, labels, [temperature]);
-    bindChart(pressureChart, labels, [pressure]);
-    bindChart(accelChart, labels, [
-        rows.map(function (row) { return row.accX; }),
-        rows.map(function (row) { return row.accY; }),
-        rows.map(function (row) { return row.accZ; })
-    ]);
-    bindChart(gyroChart, labels, [
-        rows.map(function (row) { return row.gyroX; }),
-        rows.map(function (row) { return row.gyroY; }),
-        rows.map(function (row) { return row.gyroZ; })
-    ]);
-    bindChart(magChart, labels, [
-        rows.map(function (row) { return row.magX; }),
-        rows.map(function (row) { return row.magY; }),
-        rows.map(function (row) { return row.magZ; })
-    ]);
+    chartModal.style.display = "flex";
 }
+
+function closeChartModal() {
+    chartModal.style.display = "none";
+    if (expandedChartInstance) {
+        expandedChartInstance.destroy();
+        expandedChartInstance = null;
+    }
+}
+
+document.getElementById("closeModal").addEventListener("click", closeChartModal);
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && chartModal.style.display === "flex") {
+        closeChartModal();
+    }
+});
+
+chartModal.addEventListener("click", function(e) {
+    if (e.target === chartModal) {
+        closeChartModal();
+    }
+});
 
 // ============================================================================
 // INJECT MODAL STYLES
@@ -692,7 +929,6 @@ function injectModalStyles() {
     document.head.appendChild(style);
 }
 
-// Inject styles on load
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", injectModalStyles);
 } else {

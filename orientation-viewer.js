@@ -1,11 +1,12 @@
 // ============================================================================
-// 3D ORIENTATION VISUALIZER (Cuboid Rotation via Gyroscope)
-// Uses Three.js to render and rotate a 3D box based on IMU data
+// 3D ORIENTATION VISUALIZER v2.0 (Cylinder + Cuboid Modes)
+// Uses Three.js to render rotating 3D shapes based on gyroscope data
 // ============================================================================
 
-let scene, camera, renderer, cube;
+let scene, camera, renderer, shape;
 let gyroData = { x: 0, y: 0, z: 0 };
 let isOrientationViewerActive = false;
+let shapeMode = "cylinder"; // "cylinder" or "cuboid"
 
 function init3DViewer(containerId) {
     const container = document.getElementById(containerId);
@@ -14,46 +15,30 @@ function init3DViewer(containerId) {
         return;
     }
 
-    // Clear any existing renderer
     if (renderer) {
         renderer.dispose();
         container.innerHTML = "";
     }
 
-    // Scene setup
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1e1e2e); // Catppuccin mocha bg
+    scene.background = new THREE.Color(0x1e1e2e);
 
-    // Camera setup
     const width = container.clientWidth;
     const height = container.clientHeight;
     camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 2;
+    camera.position.z = 2.5;
 
-    // Renderer setup
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // Create cuboid (box geometry)
-    const geometry = new THREE.BoxGeometry(1, 1.5, 0.8);
-    const material = new THREE.MeshPhongMaterial({
-        color: 0x89b4fa, // Catppuccin blue
-        emissive: 0x313244,
-        shininess: 100,
-        wireframe: false
-    });
-    cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
-
-    // Add edges to make the cube clearer
-    const edges = new THREE.EdgesGeometry(geometry);
-    const wireframe = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: 0x45475a }) // Catppuccin surface1
-    );
-    cube.add(wireframe);
+    // Create shape based on mode
+    if (shapeMode === "cylinder") {
+        createCylinder();
+    } else {
+        createCuboid();
+    }
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -63,7 +48,6 @@ function init3DViewer(containerId) {
     directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
 
-    // Handle window resize
     window.addEventListener("resize", function() {
         const newWidth = container.clientWidth;
         const newHeight = container.clientHeight;
@@ -72,21 +56,80 @@ function init3DViewer(containerId) {
         renderer.setSize(newWidth, newHeight);
     });
 
-    // Animation loop
     function animate() {
         requestAnimationFrame(animate);
 
-        // Rotate cube based on gyroscope data (convert degrees to radians)
-        // Gyroscope typically gives angular velocity, we apply it directly as rotation
-        cube.rotation.x += gyroData.x * 0.01; // Scale factor for smooth rotation
-        cube.rotation.y += gyroData.y * 0.01;
-        cube.rotation.z += gyroData.z * 0.01;
+        if (shape) {
+            shape.rotation.x += gyroData.x * 0.01;
+            shape.rotation.y += gyroData.y * 0.01;
+            shape.rotation.z += gyroData.z * 0.01;
+        }
 
         renderer.render(scene, camera);
     }
 
     animate();
     isOrientationViewerActive = true;
+}
+
+function createCuboid() {
+    // Remove existing shape
+    if (shape) {
+        scene.remove(shape);
+    }
+
+    const geometry = new THREE.BoxGeometry(1, 1.5, 0.8);
+    const material = new THREE.MeshPhongMaterial({
+        color: 0x89b4fa,
+        emissive: 0x313244,
+        shininess: 100,
+        wireframe: false
+    });
+    shape = new THREE.Mesh(geometry, material);
+    scene.add(shape);
+
+    // Add edges
+    const edges = new THREE.EdgesGeometry(geometry);
+    const wireframe = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({ color: 0x45475a })
+    );
+    shape.add(wireframe);
+}
+
+function createCylinder() {
+    // Remove existing shape
+    if (shape) {
+        scene.remove(shape);
+    }
+
+    // Create CanSat-like cylinder
+    // Radius: 0.4, Height: 1.2 (typical CanSat proportions)
+    const geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32);
+    const material = new THREE.MeshPhongMaterial({
+        color: 0x89b4fa,
+        emissive: 0x313244,
+        shininess: 100,
+        wireframe: false
+    });
+    shape = new THREE.Mesh(geometry, material);
+    scene.add(shape);
+
+    // Add edges
+    const edges = new THREE.EdgesGeometry(geometry);
+    const wireframe = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({ color: 0x45475a })
+    );
+    shape.add(wireframe);
+
+    // Add directional indicator (top cap highlight)
+    const indicatorGeometry = new THREE.CircleGeometry(0.4, 32);
+    const indicatorMaterial = new THREE.MeshBasicMaterial({ color: 0xfab387, transparent: true, opacity: 0.3 });
+    const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
+    indicator.position.y = 0.6;
+    indicator.rotation.x = -Math.PI / 2;
+    shape.add(indicator);
 }
 
 function updateCubeRotation(gyroX, gyroY, gyroZ) {
@@ -99,7 +142,7 @@ function destroyOrientationViewer() {
     if (renderer) {
         renderer.dispose();
         renderer = null;
-        cube = null;
+        shape = null;
         scene = null;
         camera = null;
         isOrientationViewerActive = false;
@@ -107,7 +150,7 @@ function destroyOrientationViewer() {
 }
 
 // ============================================================================
-// CREATE ORIENTATION MODAL
+// ORIENTATION MODAL WITH SHAPE TOGGLE
 // ============================================================================
 
 function createOrientationModal() {
@@ -146,16 +189,28 @@ function createOrientationModal() {
                 <h2 style="margin: 0; font-size: 16px; color: var(--ink);">
                     3D Orientation Viewer
                 </h2>
-                <button id="closeOrientationModal" style="
-                    background: var(--accent);
-                    border: none;
-                    padding: 6px 12px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: var(--bg);
-                    border-radius: 4px;
-                ">Close (Esc)</button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="toggleShapeBtn" style="
+                        background: var(--accent);
+                        border: none;
+                        padding: 6px 12px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: var(--bg);
+                        border-radius: 4px;
+                    ">Cylinder</button>
+                    <button id="closeOrientationModal" style="
+                        background: var(--accent);
+                        border: none;
+                        padding: 6px 12px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: var(--bg);
+                        border-radius: 4px;
+                    ">Close (Esc)</button>
+                </div>
             </div>
             <div id="orientationContainer" style="
                 flex: 1;
@@ -182,6 +237,22 @@ function closeOrientationViewer() {
     destroyOrientationViewer();
 }
 
+function toggleShapeMode() {
+    shapeMode = shapeMode === "cylinder" ? "cuboid" : "cylinder";
+    const btn = document.getElementById("toggleShapeBtn");
+    btn.textContent = shapeMode === "cylinder" ? "Cylinder" : "Cuboid";
+    
+    // Recreate the shape
+    if (scene && isOrientationViewerActive) {
+        if (shapeMode === "cylinder") {
+            createCylinder();
+        } else {
+            createCuboid();
+        }
+    }
+}
+
+document.getElementById("toggleShapeBtn").addEventListener("click", toggleShapeMode);
 document.getElementById("closeOrientationModal").addEventListener("click", closeOrientationViewer);
 document.addEventListener("keydown", function(e) {
     if (e.key === "Escape" && orientationModal.style.display === "flex") {
@@ -230,7 +301,6 @@ function add3DViewerButton() {
     gyroCard.appendChild(button);
 }
 
-// Add button when page loads
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", add3DViewerButton);
 } else {
@@ -238,27 +308,11 @@ if (document.readyState === "loading") {
 }
 
 // ============================================================================
-// UPDATE CUBOID ROTATION DURING CSV PLAYBACK
+// UPDATE FROM PLAYBACK
 // ============================================================================
 
-// This function gets called when you want to animate the cuboid through the flight
-function animateCuboidThroughFlight(rows, speed = 1) {
-    if (!isOrientationViewerActive) {
-        console.warn("Orientation viewer not active. Open it first.");
-        return;
-    }
-
-    openOrientationViewer();
-
-    let index = 0;
-    const interval = setInterval(function() {
-        if (index >= rows.length) {
-            clearInterval(interval);
-            return;
-        }
-
-        const row = rows[index];
+function updateOrientationViewer(row) {
+    if (row && row.gyroX != null && row.gyroY != null && row.gyroZ != null) {
         updateCubeRotation(row.gyroX, row.gyroY, row.gyroZ);
-        index++;
-    }, 50 / speed); // Adjust timing based on speed factor
+    }
 }
