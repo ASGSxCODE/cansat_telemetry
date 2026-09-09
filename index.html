@@ -105,19 +105,28 @@
         <h2>Environment</h2>
         <div class="graph-grid">
             <div class="graph-card">
-                <h3>Altitude</h3>
+                <div class="graph-header">
+                    <h3>Altitude</h3>
+                    <button class="info-btn" data-formula="altitude" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="altitudeChart"></canvas>
                 </div>
             </div>
             <div class="graph-card">
-                <h3>Temperature</h3>
+                <div class="graph-header">
+                    <h3>Temperature</h3>
+                    <button class="info-btn" data-formula="temperature" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="temperatureChart"></canvas>
                 </div>
             </div>
             <div class="graph-card">
-                <h3>Pressure</h3>
+                <div class="graph-header">
+                    <h3>Pressure</h3>
+                    <button class="info-btn" data-formula="pressure" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="pressureChart"></canvas>
                 </div>
@@ -129,13 +138,19 @@
         <h2>Derived Data</h2>
         <div class="graph-grid">
             <div class="graph-card">
-                <h3>Vertical Velocity</h3>
+                <div class="graph-header">
+                    <h3>Vertical Velocity</h3>
+                    <button class="info-btn" data-formula="vertical_velocity" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="velocityChart"></canvas>
                 </div>
             </div>
             <div class="graph-card">
-                <h3>Acceleration Magnitude</h3>
+                <div class="graph-header">
+                    <h3>Acceleration Magnitude</h3>
+                    <button class="info-btn" data-formula="accel_magnitude" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="accelMagChart"></canvas>
                 </div>
@@ -147,7 +162,10 @@
         <h2>Orientation (Roll / Pitch / Yaw)</h2>
         <div class="graph-grid">
             <div class="graph-card">
-                <h3>Roll / Pitch / Yaw</h3>
+                <div class="graph-header">
+                    <h3>Roll / Pitch / Yaw</h3>
+                    <button class="info-btn" data-formula="orientation" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="orientationChart"></canvas>
                 </div>
@@ -159,25 +177,69 @@
         <h2>IMU</h2>
         <div class="graph-grid imu-grid">
             <div class="graph-card">
-                <h3>Accelerometer X / Y / Z</h3>
+                <div class="graph-header">
+                    <h3>Accelerometer X / Y / Z</h3>
+                    <button class="info-btn" data-formula="accelerometer" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="accelChart"></canvas>
                 </div>
             </div>
             <div class="graph-card">
-                <h3>Gyroscope X / Y / Z</h3>
+                <div class="graph-header">
+                    <h3>Gyroscope X / Y / Z</h3>
+                    <button class="info-btn" data-formula="gyroscope" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="gyroChart"></canvas>
                 </div>
             </div>
             <div class="graph-card">
-                <h3>Magnetometer X / Y / Z</h3>
+                <div class="graph-header">
+                    <h3>Magnetometer X / Y / Z</h3>
+                    <button class="info-btn" data-formula="magnetometer" title="Information">ℹ</button>
+                </div>
                 <div class="chart-wrap">
                     <canvas id="magChart"></canvas>
                 </div>
             </div>
         </div>
     </section>
+
+    <section>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <h2 style="margin: 0;">Telemetry Packets</h2>
+            <button id="toggleTelemetryView" style="
+                background: var(--accent);
+                border: none;
+                padding: 4px 8px;
+                font-size: 11px;
+                cursor: pointer;
+                border-radius: 3px;
+                color: var(--bg);
+                font-weight: 600;
+            ">Compact</button>
+        </div>
+        <div class="table-container" id="telemetryContainer" style="max-height: 400px; overflow-y: auto; margin-top: 10px;">
+            <table id="telemetryTable">
+                <thead>
+                    <tr id="telemetryHeader">
+                    </tr>
+                </thead>
+                <tbody id="telemetryBody">
+                </tbody>
+            </table>
+        </div>
+        <p id="telemetry-meta" class="dataset-meta"></p>
+    </section>
+
+    <!-- Formula Tooltip Modal -->
+    <div id="formulaModal" class="formula-modal">
+        <div class="formula-content">
+            <button class="formula-close">×</button>
+            <div id="formulaBody"></div>
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

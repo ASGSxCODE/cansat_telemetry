@@ -312,11 +312,40 @@ h2 {
     cursor: pointer;
 }
 
-.graph-card h3 {
+.graph-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.graph-header h3 {
     font-size: 13px;
     font-weight: 600;
-    margin-bottom: 8px;
     color: var(--accent);
+    margin: 0;
+}
+
+.info-btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.info-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
 }
 
 .chart-wrap {
@@ -392,6 +421,129 @@ tbody tr:hover {
     filter: brightness(1.03);
 }
 
+/* ============================================================================
+   FORMULA MODAL STYLING
+   ============================================================================ */
+
+.formula-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 9998;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.formula-content {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    animation: slideUp 0.3s ease-out;
+}
+
+.formula-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.formula-close:hover {
+    filter: brightness(1.1);
+}
+
+.formula-modal h3 {
+    color: var(--accent);
+    font-size: 16px;
+    margin-bottom: 12px;
+    margin-top: 0;
+}
+
+.formula-desc {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.formula-section {
+    background: rgba(137, 180, 250, 0.1);
+    border-left: 3px solid var(--accent);
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 4px;
+}
+
+.formula-item {
+    margin: 8px 0;
+    color: var(--ink);
+    font-size: 12px;
+}
+
+.formula-item code {
+    display: block;
+    background: var(--bg);
+    padding: 8px;
+    border-radius: 3px;
+    margin-top: 4px;
+    font-family: Consolas, monospace;
+    color: var(--accent);
+    overflow-x: auto;
+}
+
+.formula-explain {
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 12px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
 @media (max-width: 900px) {
     .graph-grid {
         grid-template-columns: 1fr;
@@ -448,5 +600,13 @@ tbody tr:hover {
     #playbackTime,
     #speedLabel {
         font-size: 11px;
+    }
+
+    table {
+        font-size: 10px;
+    }
+
+    th, td {
+        padding: 6px 8px;
     }
 }

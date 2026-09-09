@@ -1,6 +1,6 @@
 // ============================================================================
-// CanSat Telemetry Visualizer v3.0 - Enhanced
-// CSV Parser & Graphing with Flight Analysis
+// CanSat Telemetry Visualizer v4.0 - Complete Edition
+// CSV Parser & Graphing with Flight Analysis, Formulas, Telemetry Table
 // ============================================================================
 
 const csvFile = document.getElementById("csvFile");
@@ -29,6 +29,125 @@ let playbackState = {
     speed: 1,
     rows: []
 };
+
+// ============================================================================
+// FORMULA DEFINITIONS
+// ============================================================================
+
+const FORMULAS = {
+    altitude: {
+        title: "Altitude",
+        description: "Barometric altitude calculated from air pressure",
+        formula: "h = 44330 × [1 - (P/P₀)^(1/5.255)]",
+        explanation: "Uses barometric formula to derive altitude from pressure readings (P = current pressure, P₀ = sea level reference)"
+    },
+    temperature: {
+        title: "Temperature",
+        description: "Direct sensor reading from onboard thermometer",
+        formula: "T = Raw ADC Value × Calibration Factor",
+        explanation: "Raw temperature sensor output converted to Celsius using factory calibration coefficients"
+    },
+    pressure: {
+        title: "Pressure",
+        description: "Atmospheric pressure from barometric sensor",
+        formula: "P = Raw ADC Value × Sensitivity + Offset",
+        explanation: "Direct sensor measurement in hectopascals (hPa) or millibars"
+    },
+    vertical_velocity: {
+        title: "Vertical Velocity",
+        description: "Rate of altitude change",
+        formula: "v_z = Δh / Δt = (h₂ - h₁) / (t₂ - t₁)",
+        explanation: "Positive = ascending, Negative = descending. Calculated from altitude delta over time interval"
+    },
+    accel_magnitude: {
+        title: "Acceleration Magnitude",
+        description: "Total acceleration experienced by the CanSat (including gravity)",
+        formula: "|a| = √(ax² + ay² + az²)",
+        explanation: "Vector magnitude of 3-axis accelerometer. During free-fall ≈ 1g. Max at apogee deployment."
+    },
+    orientation: {
+        title: "Orientation (Roll/Pitch/Yaw)",
+        description: "CanSat attitude angles",
+        formulas: [
+            { name: "Roll", formula: "φ = atan2(ay, az) × (180/π)" },
+            { name: "Pitch", formula: "θ = atan2(-ax, √(ay² + az²)) × (180/π)" },
+            { name: "Yaw", formula: "ψ = atan2(my, mx) × (180/π)" }
+        ],
+        explanation: "Derived from accelerometer and magnetometer data. Roll/Pitch from accel; Yaw from compass."
+    },
+    accelerometer: {
+        title: "Accelerometer (3-Axis)",
+        description: "Direct measurements from inertial measurement unit",
+        formula: "[ax, ay, az] = Raw ADC → m/s² or g",
+        explanation: "X, Y, Z axis linear accelerations. Includes gravity component (1g at rest)."
+    },
+    gyroscope: {
+        title: "Gyroscope (3-Axis)",
+        description: "Angular velocity measurements",
+        formula: "[ωx, ωy, ωz] = Raw ADC → °/s",
+        explanation: "Rotation rates around X, Y, Z axes. Sensitive to tumbling and spinning motion."
+    },
+    magnetometer: {
+        title: "Magnetometer (3-Axis)",
+        description: "Magnetic field measurements for compass heading",
+        formula: "[mx, my, mz] = Raw ADC → µT",
+        explanation: "Earth's magnetic field components. Used for yaw/heading calculation and orientation determination."
+    }
+};
+
+// ============================================================================
+// FORMULA MODAL SYSTEM
+// ============================================================================
+
+function setupFormulaModals() {
+    const modal = document.getElementById("formulaModal");
+    const closeBtn = document.querySelector(".formula-close");
+    const body = document.getElementById("formulaBody");
+
+    document.querySelectorAll(".info-btn").forEach(btn => {
+        btn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            const formulaKey = this.getAttribute("data-formula");
+            const formula = FORMULAS[formulaKey];
+            
+            if (!formula) return;
+
+            let content = `<h3>${formula.title}</h3>`;
+            content += `<p class="formula-desc">${formula.description}</p>`;
+            
+            if (formula.formulas) {
+                content += `<div class="formula-section">`;
+                formula.formulas.forEach(f => {
+                    content += `<div class="formula-item"><strong>${f.name}:</strong> <code>${f.formula}</code></div>`;
+                });
+                content += `</div>`;
+            } else {
+                content += `<div class="formula-section"><code>${formula.formula}</code></div>`;
+            }
+            
+            content += `<p class="formula-explain"><strong>Explanation:</strong> ${formula.explanation}</p>`;
+            
+            body.innerHTML = content;
+            modal.style.display = "flex";
+        });
+    });
+
+    closeBtn.addEventListener("click", () => {
+        modal.style.display = "none";
+    });
+
+    modal.addEventListener("click", function(e) {
+        if (e.target === modal) {
+            modal.style.display = "none";
+        }
+    });
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && modal.style.display === "flex") {
+            modal.style.display = "none";
+        }
+    });
+}
 
 // ============================================================================
 // MISSION TIME FORMATTING
@@ -224,7 +343,7 @@ const pressureChart = createChart("pressureChart", "hPa", [{
 }]);
 chartsRegistry["pressureChart"] = { chart: pressureChart, title: "Pressure" };
 
-// NEW: Vertical Velocity Chart
+// Vertical Velocity Chart
 const velocityChart = createChart("velocityChart", "m/s", [{
     label: "Vertical Velocity",
     data: [],
@@ -236,7 +355,7 @@ const velocityChart = createChart("velocityChart", "m/s", [{
 }]);
 chartsRegistry["velocityChart"] = { chart: velocityChart, title: "Vertical Velocity" };
 
-// NEW: Acceleration Magnitude Chart
+// Acceleration Magnitude Chart (SIGNED - shows direction)
 const accelMagChart = createChart("accelMagChart", "g", [{
     label: "Acceleration Magnitude",
     data: [],
@@ -246,9 +365,9 @@ const accelMagChart = createChart("accelMagChart", "g", [{
     pointRadius: 0,
     tension: 0.12
 }]);
-chartsRegistry["accelMagChart"] = { chart: accelMagChart, title: "Acceleration Magnitude" };
+chartsRegistry["accelMagChart"] = { chart: accelMagChart, title: "Acceleration Magnitude (with Direction)" };
 
-// NEW: Orientation (Roll/Pitch/Yaw) Chart
+// Orientation Chart
 const orientationChart = createChart("orientationChart", "°", [
     {
         label: "Roll",
@@ -384,7 +503,7 @@ function calculateVerticalVelocity(rows) {
     rows.forEach(function (row) {
         if (row.altitude != null && previousAltitude != null && previousTime != null && row.timeMs != null) {
             const altDelta = row.altitude - previousAltitude;
-            const timeDelta = (row.timeMs - previousTime) / 1000; // convert to seconds
+            const timeDelta = (row.timeMs - previousTime) / 1000;
             if (timeDelta > 0) {
                 velocity.push(altDelta / timeDelta);
             } else {
@@ -400,29 +519,32 @@ function calculateVerticalVelocity(rows) {
     return velocity;
 }
 
-function calculateAccelerationMagnitude(rows) {
-    return rows.map(function (row) {
+// Calculate signed acceleration magnitude (shows direction based on velocity)
+function calculateSignedAccelerationMagnitude(rows, velocities) {
+    return rows.map(function (row, index) {
         if (row.accX != null && row.accY != null && row.accZ != null) {
-            return Math.sqrt(row.accX * row.accX + row.accY * row.accY + row.accZ * row.accZ);
+            const magnitude = Math.sqrt(row.accX * row.accX + row.accY * row.accY + row.accZ * row.accZ);
+            
+            // Sign based on vertical velocity trend
+            if (index > 0 && velocities[index] != null && velocities[index - 1] != null) {
+                const accelTrend = velocities[index] - velocities[index - 1];
+                return accelTrend < 0 ? -magnitude : magnitude;
+            }
+            return magnitude;
         }
         return null;
     });
 }
 
-// NEW: Calculate Roll, Pitch, Yaw from IMU data
 function calculateOrientation(rows) {
     return rows.map(function (row) {
         if (row.accX == null || row.accY == null || row.accZ == null) {
             return { roll: null, pitch: null, yaw: null };
         }
 
-        // Roll: rotation around X-axis
         const roll = Math.atan2(row.accY, row.accZ) * (180 / Math.PI);
-
-        // Pitch: rotation around Y-axis
         const pitch = Math.atan2(-row.accX, Math.sqrt(row.accY * row.accY + row.accZ * row.accZ)) * (180 / Math.PI);
-
-        // Yaw: requires magnetometer data (Z-axis rotation)
+        
         let yaw = null;
         if (row.magX != null && row.magY != null) {
             yaw = Math.atan2(row.magY, row.magX) * (180 / Math.PI);
@@ -484,10 +606,10 @@ function detectFlightPhases(rows) {
 // MISSION STATISTICS DISPLAY
 // ============================================================================
 
-function displayMissionStatistics(rows, phases) {
+function displayMissionStatistics(rows, phases, velocities, accelMags) {
     const altitudeVals = rows.map(r => r.altitude).filter(v => v != null);
-    const velocityVals = calculateVerticalVelocity(rows).filter(v => v != null);
-    const accelVals = calculateAccelerationMagnitude(rows).filter(v => v != null);
+    const velocityVals = velocities.filter(v => v != null);
+    const accelVals = accelMags.filter(v => v != null && v > 0);
 
     const flightTime = rows[rows.length - 1].timeMs || 0;
     const maxAlt = Math.max.apply(null, altitudeVals) || 0;
@@ -552,13 +674,10 @@ function updatePlaybackDisplay() {
 
     timeSlider.value = playbackState.currentIndex;
 
-    // Update chart vertical markers
-    Object.keys(chartsRegistry).forEach(function (chartId) {
-        const registry = chartsRegistry[chartId];
-        if (registry.chart && registry.chart.ctx) {
-            registry.chart.ctx.canvas.style.opacity = "0.5";
-        }
-    });
+    // SYNC 3D ORIENTATION VIEWER
+    if (row.roll != null && row.pitch != null && row.yaw != null) {
+        syncOrientation(row.roll, row.pitch, row.yaw);
+    }
 }
 
 function playbackAnimation() {
@@ -572,7 +691,6 @@ function playbackAnimation() {
     }
 
     updatePlaybackDisplay();
-    updateOrientationViewer(playbackState.rows[playbackState.currentIndex]);
 
     setTimeout(playbackAnimation, 50 / playbackState.speed);
 }
@@ -615,6 +733,86 @@ function detectEvents(rows) {
 }
 
 // ============================================================================
+// TELEMETRY TABLE GENERATION
+// ============================================================================
+
+function generateTelemetryTable(rows) {
+    const headerRow = document.getElementById("telemetryHeader");
+    const bodyRows = document.getElementById("telemetryBody");
+    
+    bodyRows.innerHTML = "";
+    headerRow.innerHTML = "";
+
+    if (rows.length === 0) return;
+
+    // Build header from all available fields
+    const fieldsInOrder = [
+        'sample', 'timeMs', 'altitude', 'temperature', 'pressure', 'humidity', 'co2',
+        'accX', 'accY', 'accZ', 'gyroX', 'gyroY', 'gyroZ', 'magX', 'magY', 'magZ'
+    ];
+
+    const availableFields = fieldsInOrder.filter(field => {
+        return rows.some(row => row[field] != null);
+    });
+
+    availableFields.forEach(field => {
+        const th = document.createElement("th");
+        const labels = {
+            sample: "Sample",
+            timeMs: "Time (ms)",
+            altitude: "Alt (m)",
+            temperature: "Temp (°C)",
+            pressure: "Press (hPa)",
+            humidity: "Humidity (%)",
+            co2: "CO₂ (ppm)",
+            accX: "Ax (g)", accY: "Ay (g)", accZ: "Az (g)",
+            gyroX: "Gx (°/s)", gyroY: "Gy (°/s)", gyroZ: "Gz (°/s)",
+            magX: "Mx (µT)", magY: "My (µT)", magZ: "Mz (µT)"
+        };
+        th.textContent = labels[field] || field;
+        headerRow.appendChild(th);
+    });
+
+    // Add rows
+    rows.forEach((row, idx) => {
+        const tr = document.createElement("tr");
+        if (idx % 2 === 0) tr.style.backgroundColor = "rgba(137, 180, 250, 0.02)";
+        
+        availableFields.forEach(field => {
+            const td = document.createElement("td");
+            const val = row[field];
+            if (val == null) {
+                td.textContent = "—";
+            } else if (typeof val === 'number') {
+                td.textContent = val.toFixed(3);
+            } else {
+                td.textContent = String(val);
+            }
+            tr.appendChild(td);
+        });
+        bodyRows.appendChild(tr);
+    });
+
+    document.getElementById("telemetry-meta").textContent = `${rows.length} packets, ${availableFields.length} parameters`;
+
+    // Setup toggle button
+    const toggleBtn = document.getElementById("toggleTelemetryView");
+    let isCompact = true;
+    toggleBtn.addEventListener("click", function() {
+        const table = document.getElementById("telemetryTable");
+        if (isCompact) {
+            table.style.fontSize = "10px";
+            toggleBtn.textContent = "Detailed";
+            isCompact = false;
+        } else {
+            table.style.fontSize = "13px";
+            toggleBtn.textContent = "Compact";
+            isCompact = true;
+        }
+    });
+}
+
+// ============================================================================
 // MAIN ANALYSIS FUNCTION
 // ============================================================================
 
@@ -640,13 +838,20 @@ function analyzeDataset(rows) {
     const temperature = rows.map(function (row) { return row.temperature; });
     const pressure = rows.map(function (row) { return row.pressure; });
 
-    // NEW: Calculate derived data
+    // Calculate derived data
     const velocity = calculateVerticalVelocity(rows);
-    const accelMag = calculateAccelerationMagnitude(rows);
+    const accelMag = calculateSignedAccelerationMagnitude(rows, velocity);
     const orientation = calculateOrientation(rows);
     const roll = orientation.map(o => o.roll);
     const pitch = orientation.map(o => o.pitch);
     const yaw = orientation.map(o => o.yaw);
+
+    // Store orientation in rows for playback
+    rows.forEach((row, idx) => {
+        row.roll = roll[idx];
+        row.pitch = pitch[idx];
+        row.yaw = yaw[idx];
+    });
 
     const pressureExtrema = extrema(pressure);
     const temperatureExtrema = extrema(temperature);
@@ -660,9 +865,8 @@ function analyzeDataset(rows) {
 
     datasetMeta.textContent = rows.length + " samples";
 
-    // NEW: Detect flight phases
     const phases = detectFlightPhases(rows);
-    displayMissionStatistics(rows, phases);
+    displayMissionStatistics(rows, phases, velocity, accelMag);
 
     const events = detectEvents(rows);
 
@@ -688,10 +892,10 @@ function analyzeDataset(rows) {
         rows.map(function (row) { return row.magZ; })
     ]);
 
-    // NEW: Setup playback
     setupPlaybackControls(rows);
+    generateTelemetryTable(rows);
+    setupFormulaModals();
 
-    // Add click handlers to graph cards
     Object.keys(chartsRegistry).forEach(function (chartId) {
         const canvas = document.getElementById(chartId);
         if (canvas && canvas.parentElement) {
@@ -749,7 +953,10 @@ function parseCSV(csvText) {
             gyroZ: readNumber(columns, columnMap.gyroZ),
             magX: readNumber(columns, columnMap.magX),
             magY: readNumber(columns, columnMap.magY),
-            magZ: readNumber(columns, columnMap.magZ)
+            magZ: readNumber(columns, columnMap.magZ),
+            roll: null,
+            pitch: null,
+            yaw: null
         });
     }
 

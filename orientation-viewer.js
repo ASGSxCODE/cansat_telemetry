@@ -1,12 +1,13 @@
 // ============================================================================
-// 3D ORIENTATION VISUALIZER v2.0 (Cylinder + Cuboid Modes)
-// Uses Three.js to render rotating 3D shapes based on gyroscope data
+// 3D ORIENTATION VISUALIZER v3.0 (Playback Sync + Real-time Rotation)
+// Uses Three.js to render rotating 3D shapes based on live playback data
 // ============================================================================
 
 let scene, camera, renderer, shape;
-let gyroData = { x: 0, y: 0, z: 0 };
+let currentOrientation = { roll: 0, pitch: 0, yaw: 0 };
 let isOrientationViewerActive = false;
-let shapeMode = "cylinder"; // "cylinder" or "cuboid"
+let shapeMode = "cylinder";
+let lastUpdateTime = 0;
 
 function init3DViewer(containerId) {
     const container = document.getElementById(containerId);
@@ -33,14 +34,12 @@ function init3DViewer(containerId) {
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // Create shape based on mode
     if (shapeMode === "cylinder") {
         createCylinder();
     } else {
         createCuboid();
     }
 
-    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
@@ -60,9 +59,13 @@ function init3DViewer(containerId) {
         requestAnimationFrame(animate);
 
         if (shape) {
-            shape.rotation.x += gyroData.x * 0.01;
-            shape.rotation.y += gyroData.y * 0.01;
-            shape.rotation.z += gyroData.z * 0.01;
+            const roll = (currentOrientation.roll || 0) * (Math.PI / 180);
+            const pitch = (currentOrientation.pitch || 0) * (Math.PI / 180);
+            const yaw = (currentOrientation.yaw || 0) * (Math.PI / 180);
+
+            shape.rotation.x = roll;
+            shape.rotation.y = yaw;
+            shape.rotation.z = pitch;
         }
 
         renderer.render(scene, camera);
@@ -73,7 +76,6 @@ function init3DViewer(containerId) {
 }
 
 function createCuboid() {
-    // Remove existing shape
     if (shape) {
         scene.remove(shape);
     }
@@ -88,23 +90,25 @@ function createCuboid() {
     shape = new THREE.Mesh(geometry, material);
     scene.add(shape);
 
-    // Add edges
     const edges = new THREE.EdgesGeometry(geometry);
     const wireframe = new THREE.LineSegments(
         edges,
         new THREE.LineBasicMaterial({ color: 0x45475a })
     );
     shape.add(wireframe);
+
+    const indicatorGeometry = new THREE.PlaneGeometry(0.95, 0.2);
+    const indicatorMaterial = new THREE.MeshBasicMaterial({ color: 0xfab387, transparent: true, opacity: 0.4 });
+    const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
+    indicator.position.z = 0.41;
+    shape.add(indicator);
 }
 
 function createCylinder() {
-    // Remove existing shape
     if (shape) {
         scene.remove(shape);
     }
 
-    // Create CanSat-like cylinder
-    // Radius: 0.4, Height: 1.2 (typical CanSat proportions)
     const geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32);
     const material = new THREE.MeshPhongMaterial({
         color: 0x89b4fa,
@@ -115,7 +119,6 @@ function createCylinder() {
     shape = new THREE.Mesh(geometry, material);
     scene.add(shape);
 
-    // Add edges
     const edges = new THREE.EdgesGeometry(geometry);
     const wireframe = new THREE.LineSegments(
         edges,
@@ -123,7 +126,6 @@ function createCylinder() {
     );
     shape.add(wireframe);
 
-    // Add directional indicator (top cap highlight)
     const indicatorGeometry = new THREE.CircleGeometry(0.4, 32);
     const indicatorMaterial = new THREE.MeshBasicMaterial({ color: 0xfab387, transparent: true, opacity: 0.3 });
     const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
@@ -132,10 +134,10 @@ function createCylinder() {
     shape.add(indicator);
 }
 
-function updateCubeRotation(gyroX, gyroY, gyroZ) {
-    gyroData.x = gyroX || 0;
-    gyroData.y = gyroY || 0;
-    gyroData.z = gyroZ || 0;
+function updateOrientationFromPlayback(roll, pitch, yaw) {
+    currentOrientation.roll = roll || 0;
+    currentOrientation.pitch = pitch || 0;
+    currentOrientation.yaw = yaw || 0;
 }
 
 function destroyOrientationViewer() {
@@ -187,7 +189,7 @@ function createOrientationModal() {
                 border-bottom: 1px solid var(--line);
             ">
                 <h2 style="margin: 0; font-size: 16px; color: var(--ink);">
-                    3D Orientation Viewer
+                    3D Orientation Viewer (Live Playback)
                 </h2>
                 <div style="display: flex; gap: 8px;">
                     <button id="toggleShapeBtn" style="
@@ -217,6 +219,15 @@ function createOrientationModal() {
                 padding: 14px;
                 overflow: hidden;
             "></div>
+            <div style="
+                padding: 10px 14px;
+                border-top: 1px solid var(--line);
+                font-family: Consolas, monospace;
+                font-size: 11px;
+                color: var(--muted);
+            ">
+                Roll: <span id="orientationRoll">0.00</span>° | Pitch: <span id="orientationPitch">0.00</span>° | Yaw: <span id="orientationYaw">0.00</span>°
+            </div>
         </div>
     `;
     document.body.appendChild(modal);
@@ -242,7 +253,6 @@ function toggleShapeMode() {
     const btn = document.getElementById("toggleShapeBtn");
     btn.textContent = shapeMode === "cylinder" ? "Cylinder" : "Cuboid";
     
-    // Recreate the shape
     if (scene && isOrientationViewerActive) {
         if (shapeMode === "cylinder") {
             createCylinder();
@@ -267,12 +277,12 @@ orientationModal.addEventListener("click", function(e) {
 });
 
 // ============================================================================
-// ADD 3D VIEWER BUTTON TO GYRO CHART CARD
+// ADD 3D VIEWER BUTTON TO ORIENTATION CHART
 // ============================================================================
 
 function add3DViewerButton() {
-    const gyroCard = document.querySelector('[id="gyroChart"]')?.closest(".graph-card");
-    if (!gyroCard) return;
+    const orientationCard = document.querySelector('[id="orientationChart"]')?.closest(".graph-card");
+    if (!orientationCard) return;
 
     const button = document.createElement("button");
     button.textContent = "🔷 View 3D";
@@ -298,7 +308,7 @@ function add3DViewerButton() {
     });
     button.addEventListener("click", openOrientationViewer);
     
-    gyroCard.appendChild(button);
+    orientationCard.appendChild(button);
 }
 
 if (document.readyState === "loading") {
@@ -308,11 +318,15 @@ if (document.readyState === "loading") {
 }
 
 // ============================================================================
-// UPDATE FROM PLAYBACK
+// UPDATE FROM PLAYBACK (EXPORTED FOR USE IN script.js)
 // ============================================================================
 
-function updateOrientationViewer(row) {
-    if (row && row.gyroX != null && row.gyroY != null && row.gyroZ != null) {
-        updateCubeRotation(row.gyroX, row.gyroY, row.gyroZ);
+function syncOrientation(roll, pitch, yaw) {
+    updateOrientationFromPlayback(roll, pitch, yaw);
+    
+    if (orientationModal.style.display === "flex") {
+        document.getElementById("orientationRoll").textContent = (roll || 0).toFixed(2);
+        document.getElementById("orientationPitch").textContent = (pitch || 0).toFixed(2);
+        document.getElementById("orientationYaw").textContent = (yaw || 0).toFixed(2);
     }
 }
