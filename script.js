@@ -21,6 +21,7 @@ const AXIS = {
 const tickColor = "#8d8676";
 const gridColor = "rgba(230, 223, 208, 0.08)";
 let lastParsedRows = [];
+window.lastParsedRowsFor3D = [];
 
 // Playback state
 let playbackState = {
@@ -823,6 +824,7 @@ function analyzeDataset(rows) {
     }
 
     lastParsedRows = rows;
+    window.lastParsedRowsFor3D = rows;
 
     const labels = rows.map(function (row, index) {
         if (row.timeMs != null) {

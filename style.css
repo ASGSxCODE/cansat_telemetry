@@ -608,5 +608,659 @@ tbody tr:hover {
 
     th, td {
         padding: 6px 8px;
+    }/* Catppuccin Mocha with Blue Accent */
+:root {
+    --bg: #1e1e2e;
+    --panel: #313244;
+    --ink: #cdd6f4;
+    --muted: #a6adc8;
+    --line: #45475a;
+    --accent: #89b4fa;
+    
+    --red: #f38ba8;
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --peach: #fab387;
+    --lavender: #b4befe;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 18px 22px 40px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid var(--accent);
+}
+
+.callsign {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    text-transform: uppercase;
+}
+
+header h1 {
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 2px 0 2px;
+}
+
+.subtitle,
+h2 {
+    color: var(--muted);
+}
+
+.subtitle {
+    font-size: 13px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.load-csv {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    border: 1px solid #7aa2f7;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.load-csv:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.3);
+}
+
+.load-csv input {
+    display: none;
+}
+
+#file-name {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+section {
+    margin-bottom: 26px;
+}
+
+h2 {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(137, 180, 250, 0.15);
+}
+
+.stat-card h3 {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 0;
+}
+
+.playback-controls {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.play-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.play-btn:hover {
+    filter: brightness(1.1);
+}
+
+.time-slider {
+    flex: 1;
+    min-width: 200px;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.4);
+}
+
+.time-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.4);
+}
+
+#playbackTime {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 100px;
+}
+
+.speed-slider {
+    width: 60px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.speed-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+}
+
+#speedLabel {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 30px;
+}
+
+.playback-info {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.playback-info p {
+    margin: 4px 0;
+}
+
+#currentPhase {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.graph-card,
+.table-container {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.graph-card:hover,
+.table-container:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(137, 180, 250, 0.15);
+}
+
+.graph-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.imu-grid {
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+    .imu-grid {
+        grid-template-columns: 1fr 1fr 1fr;
     }
+}
+
+.graph-card {
+    padding: 12px 12px 8px;
+    cursor: pointer;
+}
+
+.graph-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.graph-header h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 0;
+}
+
+.info-btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.info-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+}
+
+.chart-wrap {
+    height: 210px;
+    cursor: pointer;
+}
+
+.imu-grid .chart-wrap {
+    height: 240px;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 13px;
+}
+
+th,
+td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+}
+
+th {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+td:nth-child(2),
+td:nth-child(3),
+th:nth-child(2),
+th:nth-child(3) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:hover {
+    background: var(--line);
+}
+
+.dataset-meta {
+    margin-top: 8px;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.graph-card,
+.chart-wrap {
+    cursor: pointer;
+    transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.graph-card:hover {
+    filter: brightness(1.05);
+}
+
+.chart-wrap:hover {
+    filter: brightness(1.03);
+}
+
+/* ============================================================================
+   FORMULA MODAL STYLING
+   ============================================================================ */
+
+.formula-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 9998;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.formula-content {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    animation: slideUp 0.3s ease-out;
+}
+
+.formula-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.formula-close:hover {
+    filter: brightness(1.1);
+}
+
+.formula-modal h3 {
+    color: var(--accent);
+    font-size: 16px;
+    margin-bottom: 12px;
+    margin-top: 0;
+}
+
+.formula-desc {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.formula-section {
+    background: rgba(137, 180, 250, 0.1);
+    border-left: 3px solid var(--accent);
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 4px;
+}
+
+.formula-item {
+    margin: 8px 0;
+    color: var(--ink);
+    font-size: 12px;
+}
+
+.formula-item code {
+    display: block;
+    background: var(--bg);
+    padding: 8px;
+    border-radius: 3px;
+    margin-top: 4px;
+    font-family: Consolas, monospace;
+    color: var(--accent);
+    overflow-x: auto;
+}
+
+.formula-explain {
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 12px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================================================
+   3D VIEWER PLAYER SLIDER STYLING
+   ============================================================================ */
+
+#3d-time-slider {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#3d-time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(137, 180, 250, 0.4);
+}
+
+#3d-time-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 6px rgba(137, 180, 250, 0.4);
+}
+
+#3d-time-slider::-moz-range-track {
+    background: transparent;
+    border: none;
+}
+
+#3d-play-btn {
+    transition: all 0.2s ease;
+}
+
+#3d-play-btn:hover {
+    filter: brightness(1.1);
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 900px) {
+    .graph-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .imu-grid {
+        grid-template-columns: 1fr;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .playback-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .play-btn {
+        width: 100%;
+    }
+
+    .time-slider {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    .graph-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body {
+        padding: 12px;
+    }
+
+    header h1 {
+        font-size: 18px;
+    }
+
+    .chart-wrap {
+        height: 200px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #playbackTime,
+    #speedLabel {
+        font-size: 11px;
+    }
+
+    table {
+        font-size: 10px;
+    }
+
+    th, td {
+        padding: 6px 8px;
+    }
+}
 }

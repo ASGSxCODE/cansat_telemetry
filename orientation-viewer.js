@@ -9,6 +9,15 @@ let isOrientationViewerActive = false;
 let shapeMode = "cylinder";
 let lastUpdateTime = 0;
 
+// 3D Player independent state
+let viewer3DState = {
+    isPlaying: false,
+    currentIndex: 0,
+    speed: 1,
+    rows: [],
+    animationFrameId: null
+};
+
 function init3DViewer(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -189,7 +198,7 @@ function createOrientationModal() {
                 border-bottom: 1px solid var(--line);
             ">
                 <h2 style="margin: 0; font-size: 16px; color: var(--ink);">
-                    3D Orientation Viewer (Live Playback)
+                    3D Orientation Viewer (Independent Player)
                 </h2>
                 <div style="display: flex; gap: 8px;">
                     <button id="toggleShapeBtn" style="
@@ -225,8 +234,36 @@ function createOrientationModal() {
                 font-family: Consolas, monospace;
                 font-size: 11px;
                 color: var(--muted);
+                background: rgba(0, 0, 0, 0.2);
             ">
-                Roll: <span id="orientationRoll">0.00</span>° | Pitch: <span id="orientationPitch">0.00</span>° | Yaw: <span id="orientationYaw">0.00</span>°
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <button id="3d-play-btn" style="
+                        background: var(--accent);
+                        color: var(--bg);
+                        border: none;
+                        padding: 4px 10px;
+                        font-size: 11px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        border-radius: 3px;
+                        min-width: 60px;
+                    ">▶ Play</button>
+                    <input type="range" id="3d-time-slider" style="
+                        flex: 1;
+                        height: 4px;
+                        background: var(--line);
+                        border-radius: 2px;
+                        outline: none;
+                        -webkit-appearance: none;
+                        appearance: none;
+                    " min="0" max="100" value="0">
+                    <span id="3d-playback-time" style="min-width: 90px; text-align: right;">0:00:00 / 0:00:00</span>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 8px;">
+                    <span>Roll: <span id="orientationRoll" style="color: var(--accent);">0.00</span>°</span>
+                    <span>Pitch: <span id="orientationPitch" style="color: var(--accent);">0.00</span>°</span>
+                    <span>Yaw: <span id="orientationYaw" style="color: var(--accent);">0.00</span>°</span>
+                </div>
             </div>
         </div>
     `;
@@ -236,15 +273,26 @@ function createOrientationModal() {
 
 let orientationModal = createOrientationModal();
 
-function openOrientationViewer() {
+function openOrientationViewer(rows) {
+    if (!rows || rows.length === 0) {
+        console.error("No data rows provided to 3D viewer");
+        return;
+    }
+
     orientationModal.style.display = "flex";
     setTimeout(function() {
         init3DViewer("orientationContainer");
+        setup3DPlayerControls(rows);
+        update3DDisplay(rows);
     }, 100);
 }
 
 function closeOrientationViewer() {
     orientationModal.style.display = "none";
+    viewer3DState.isPlaying = false;
+    if (viewer3DState.animationFrameId) {
+        cancelAnimationFrame(viewer3DState.animationFrameId);
+    }
     destroyOrientationViewer();
 }
 
@@ -260,6 +308,85 @@ function toggleShapeMode() {
             createCuboid();
         }
     }
+}
+
+// ============================================================================
+// 3D VIEWER PLAYBACK CONTROLS
+// ============================================================================
+
+function setup3DPlayerControls(rows) {
+    viewer3DState.rows = rows;
+    viewer3DState.currentIndex = 0;
+
+    const playBtn = document.getElementById("3d-play-btn");
+    const timeSlider = document.getElementById("3d-time-slider");
+    const playbackTimeEl = document.getElementById("3d-playback-time");
+
+    timeSlider.max = rows.length - 1;
+    timeSlider.value = 0;
+
+    playBtn.addEventListener("click", function() {
+        viewer3DState.isPlaying = !viewer3DState.isPlaying;
+        playBtn.textContent = viewer3DState.isPlaying ? "⏸ Pause" : "▶ Play";
+        
+        if (viewer3DState.isPlaying) {
+            play3DAnimation();
+        } else {
+            if (viewer3DState.animationFrameId) {
+                cancelAnimationFrame(viewer3DState.animationFrameId);
+            }
+        }
+    });
+
+    timeSlider.addEventListener("input", function() {
+        viewer3DState.currentIndex = parseInt(this.value);
+        update3DDisplay(rows);
+    });
+}
+
+function update3DDisplay(rows) {
+    const row = rows[viewer3DState.currentIndex];
+    if (!row) return;
+
+    const timeSlider = document.getElementById("3d-time-slider");
+    
+    // Format time display
+    function formatTime(ms) {
+        if (ms == null) return "0:00:00";
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+        const seconds = String(totalSeconds % 60).padStart(2, "0");
+        return hours + ":" + minutes + ":" + seconds;
+    }
+
+    const currentTime = formatTime(row.timeMs || 0);
+    const totalTime = formatTime(rows[rows.length - 1].timeMs || 0);
+    
+    document.getElementById("3d-playback-time").textContent = currentTime + " / " + totalTime;
+    timeSlider.value = viewer3DState.currentIndex;
+
+    // Update 3D model orientation
+    if (row.roll != null && row.pitch != null && row.yaw != null) {
+        updateOrientationFromPlayback(row.roll, row.pitch, row.yaw);
+        document.getElementById("orientationRoll").textContent = (row.roll || 0).toFixed(2);
+        document.getElementById("orientationPitch").textContent = (row.pitch || 0).toFixed(2);
+        document.getElementById("orientationYaw").textContent = (row.yaw || 0).toFixed(2);
+    }
+}
+
+function play3DAnimation() {
+    if (!viewer3DState.isPlaying) return;
+
+    viewer3DState.currentIndex++;
+    if (viewer3DState.currentIndex >= viewer3DState.rows.length) {
+        viewer3DState.isPlaying = false;
+        document.getElementById("3d-play-btn").textContent = "▶ Play";
+        return;
+    }
+
+    update3DDisplay(viewer3DState.rows);
+    viewer3DState.animationFrameId = setTimeout(play3DAnimation, 50);
 }
 
 document.getElementById("toggleShapeBtn").addEventListener("click", toggleShapeMode);
@@ -306,7 +433,10 @@ function add3DViewerButton() {
     button.addEventListener("mouseleave", function() {
         this.style.filter = "brightness(1)";
     });
-    button.addEventListener("click", openOrientationViewer);
+    button.addEventListener("click", function() {
+        // Will be called from script.js with actual rows data
+        openOrientationViewer(window.lastParsedRowsFor3D || []);
+    });
     
     orientationCard.appendChild(button);
 }
@@ -318,15 +448,12 @@ if (document.readyState === "loading") {
 }
 
 // ============================================================================
-// UPDATE FROM PLAYBACK (EXPORTED FOR USE IN script.js)
+// UPDATE FROM MAIN PLAYBACK (Only when 3D modal NOT open)
 // ============================================================================
 
 function syncOrientation(roll, pitch, yaw) {
-    updateOrientationFromPlayback(roll, pitch, yaw);
-    
-    if (orientationModal.style.display === "flex") {
-        document.getElementById("orientationRoll").textContent = (roll || 0).toFixed(2);
-        document.getElementById("orientationPitch").textContent = (pitch || 0).toFixed(2);
-        document.getElementById("orientationYaw").textContent = (yaw || 0).toFixed(2);
+    // Only update if 3D viewer is closed or not in independent playback mode
+    if (orientationModal.style.display !== "flex" || !viewer3DState.isPlaying) {
+        updateOrientationFromPlayback(roll, pitch, yaw);
     }
 }
