@@ -62,9 +62,9 @@ const FORMULAS = {
     },
     accel_magnitude: {
         title: "Acceleration Magnitude",
-        description: "Total acceleration experienced by the CanSat (including gravity)",
+        description: "Total acceleration experienced by the CanSat (specific force)",
         formula: "|a| = √(ax² + ay² + az²)",
-        explanation: "Vector magnitude of 3-axis accelerometer. During free-fall ≈ 1g. Max at apogee deployment."
+        explanation: "Vector magnitude of 3-axis accelerometer. At rest ≈ 1g (gravity). During free-fall ≈ 0g (no acceleration). Max during parachute deployment."
     },
     orientation: {
         title: "Orientation (Roll/Pitch/Yaw)",
@@ -433,7 +433,10 @@ const COLUMN_ALIASES = {
     gyroZ: ["gyroz", "gz", "gyrozdps", "gyroratez", "gyroscopez"],
     magX: ["magx", "mx", "magxut", "magnetometerx", "compassx", "magneticx"],
     magY: ["magy", "my", "magyut", "magnetometery", "compassy", "magneticy"],
-    magZ: ["magz", "mz", "magzut", "magnetometerz", "compassz", "magneticz"]
+    magZ: ["magz", "mz", "magzut", "magnetometerz", "compassz", "magneticz"],
+    voltage: ["voltage", "voltageV", "volt", "v"],
+    current: ["current", "currenta", "amp", "a"],
+    power: ["power", "powerw", "watt", "w"]
 };
 
 function buildColumnMap(headerLine) {
@@ -466,7 +469,12 @@ function readNumber(columns, index) {
     if (index == null || index >= columns.length) {
         return null;
     }
-    const value = Number(String(columns[index]).trim());
+    const trimmed = String(columns[index]).trim();
+    // Treat empty cells as null, not 0
+    if (trimmed === "" || trimmed === "null" || trimmed === "NULL") {
+        return null;
+    }
+    const value = Number(trimmed);
     return Number.isFinite(value) ? value : null;
 }
 
@@ -496,14 +504,38 @@ function formatValue(value, digits, unit) {
 // DERIVED CALCULATIONS
 // ============================================================================
 
+// Simple moving average filter
+function simpleMovingAverage(values, windowSize) {
+    const filtered = [];
+    for (let i = 0; i < values.length; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
+            if (values[j] != null) {
+                sum += values[j];
+                count++;
+            }
+        }
+        filtered.push(count > 0 ? sum / count : null);
+    }
+    return filtered;
+}
+
 function calculateVerticalVelocity(rows) {
+    // First, extract raw altitude values
+    const rawAltitude = rows.map(r => r.altitude);
+    
+    // Apply 5-sample altitude filter (0.5 seconds at 10 Hz)
+    const filteredAltitude = simpleMovingAverage(rawAltitude, 5);
+    
+    // Calculate velocity from filtered altitude
     const velocity = [];
     let previousAltitude = null;
     let previousTime = null;
 
-    rows.forEach(function (row) {
-        if (row.altitude != null && previousAltitude != null && previousTime != null && row.timeMs != null) {
-            const altDelta = row.altitude - previousAltitude;
+    rows.forEach(function (row, index) {
+        if (filteredAltitude[index] != null && previousAltitude != null && previousTime != null && row.timeMs != null) {
+            const altDelta = filteredAltitude[index] - previousAltitude;
             const timeDelta = (row.timeMs - previousTime) / 1000;
             if (timeDelta > 0) {
                 velocity.push(altDelta / timeDelta);
@@ -513,25 +545,19 @@ function calculateVerticalVelocity(rows) {
         } else {
             velocity.push(null);
         }
-        previousAltitude = row.altitude;
+        previousAltitude = filteredAltitude[index];
         previousTime = row.timeMs;
     });
 
-    return velocity;
+    // Apply 3-sample velocity smoothing
+    return simpleMovingAverage(velocity, 3);
 }
 
-// Calculate signed acceleration magnitude (shows direction based on velocity)
-function calculateSignedAccelerationMagnitude(rows, velocities) {
-    return rows.map(function (row, index) {
+// Calculate acceleration magnitude (always non-negative)
+function calculateAccelerationMagnitude(rows) {
+    return rows.map(function (row) {
         if (row.accX != null && row.accY != null && row.accZ != null) {
-            const magnitude = Math.sqrt(row.accX * row.accX + row.accY * row.accY + row.accZ * row.accZ);
-            
-            // Sign based on vertical velocity trend
-            if (index > 0 && velocities[index] != null && velocities[index - 1] != null) {
-                const accelTrend = velocities[index] - velocities[index - 1];
-                return accelTrend < 0 ? -magnitude : magnitude;
-            }
-            return magnitude;
+            return Math.sqrt(row.accX * row.accX + row.accY * row.accY + row.accZ * row.accZ);
         }
         return null;
     });
@@ -567,26 +593,30 @@ function detectFlightPhases(rows) {
         landing: { time: null }
     };
 
+    // Apply light filter to altitude for phase detection
+    const rawAltitude = rows.map(r => r.altitude);
+    const filteredAltitude = simpleMovingAverage(rawAltitude, 3);
+
     let phase = "ground";
     let maxAltitude = -Infinity;
     let maxAltitudeIndex = -1;
 
     rows.forEach(function (row, index) {
-        if (row.altitude == null) return;
+        if (filteredAltitude[index] == null) return;
 
-        if (phase === "ground" && row.altitude > 10) {
+        if (phase === "ground" && filteredAltitude[index] > 10) {
             phases.ascent.start = row.timeMs;
             phase = "ascent";
-        } else if (phase === "ascent" && row.altitude > maxAltitude) {
-            maxAltitude = row.altitude;
+        } else if (phase === "ascent" && filteredAltitude[index] > maxAltitude) {
+            maxAltitude = filteredAltitude[index];
             maxAltitudeIndex = index;
-        } else if (phase === "ascent" && row.altitude < maxAltitude - 5) {
+        } else if (phase === "ascent" && filteredAltitude[index] < maxAltitude - 5) {
             phases.ascent.end = row.timeMs;
             phases.apogee.time = rows[maxAltitudeIndex].timeMs;
             phases.apogee.altitude = maxAltitude;
             phases.descent.start = row.timeMs;
             phase = "descent";
-        } else if (phase === "descent" && row.altitude < 5) {
+        } else if (phase === "descent" && filteredAltitude[index] < 5) {
             phases.descent.end = row.timeMs;
             phases.landing.time = row.timeMs;
             phase = "landed";
@@ -610,9 +640,10 @@ function detectFlightPhases(rows) {
 function displayMissionStatistics(rows, phases, velocities, accelMags) {
     const altitudeVals = rows.map(r => r.altitude).filter(v => v != null);
     const velocityVals = velocities.filter(v => v != null);
-    const accelVals = accelMags.filter(v => v != null && v > 0);
+    const accelVals = accelMags.filter(v => v != null);
 
-    const flightTime = rows[rows.length - 1].timeMs || 0;
+    // Flight time: from first sample to last sample (not absolute timestamp)
+    const flightTime = (rows[rows.length - 1].timeMs || 0) - (rows[0].timeMs || 0);
     const maxAlt = Math.max.apply(null, altitudeVals) || 0;
     const maxVelocity = Math.max.apply(null, velocityVals.map(v => Math.abs(v))) || 0;
     const peakAccel = Math.max.apply(null, accelVals) || 0;
@@ -640,20 +671,35 @@ function setupPlaybackControls(rows) {
     timeSlider.max = rows.length - 1;
     timeSlider.value = 0;
 
-    playBtn.addEventListener("click", function () {
+    // Remove any previous event listeners by cloning elements
+    const newPlayBtn = playBtn.cloneNode(true);
+    playBtn.parentNode.replaceChild(newPlayBtn, playBtn);
+    
+    const newTimeSlider = timeSlider.cloneNode(true);
+    timeSlider.parentNode.replaceChild(newTimeSlider, timeSlider);
+    
+    const newSpeedSlider = speedSlider.cloneNode(true);
+    speedSlider.parentNode.replaceChild(newSpeedSlider, speedSlider);
+
+    // Re-query the elements
+    const freshPlayBtn = document.getElementById("playBtn");
+    const freshTimeSlider = document.getElementById("timeSlider");
+    const freshSpeedSlider = document.getElementById("speedSlider");
+
+    freshPlayBtn.addEventListener("click", function () {
         playbackState.isPlaying = !playbackState.isPlaying;
-        playBtn.textContent = playbackState.isPlaying ? "⏸ Pause" : "▶ Play";
+        freshPlayBtn.textContent = playbackState.isPlaying ? "⏸ Pause" : "▶ Play";
         if (playbackState.isPlaying) {
             playbackAnimation();
         }
     });
 
-    timeSlider.addEventListener("input", function () {
+    freshTimeSlider.addEventListener("input", function () {
         playbackState.currentIndex = parseInt(this.value);
         updatePlaybackDisplay();
     });
 
-    speedSlider.addEventListener("input", function () {
+    freshSpeedSlider.addEventListener("input", function () {
         playbackState.speed = parseFloat(this.value);
         document.getElementById("speedLabel").textContent = playbackState.speed + "x";
     });
@@ -664,8 +710,13 @@ function updatePlaybackDisplay() {
     if (!row) return;
 
     const timeSlider = document.getElementById("timeSlider");
-    const currentTime = formatMissionTime(row.timeMs || 0);
-    const totalTime = formatMissionTime(playbackState.rows[playbackState.rows.length - 1].timeMs || 0);
+    
+    // Calculate elapsed time from first sample
+    const elapsedMs = (row.timeMs || 0) - (playbackState.rows[0].timeMs || 0);
+    const totalMs = (playbackState.rows[playbackState.rows.length - 1].timeMs || 0) - (playbackState.rows[0].timeMs || 0);
+    
+    const currentTime = formatMissionTime(elapsedMs);
+    const totalTime = formatMissionTime(totalMs);
 
     document.getElementById("playbackTime").textContent = currentTime + " / " + totalTime;
     document.getElementById("currentValues").textContent =
@@ -749,7 +800,8 @@ function generateTelemetryTable(rows) {
     // Build header from all available fields
     const fieldsInOrder = [
         'sample', 'timeMs', 'altitude', 'temperature', 'pressure', 'humidity', 'co2',
-        'accX', 'accY', 'accZ', 'gyroX', 'gyroY', 'gyroZ', 'magX', 'magY', 'magZ'
+        'accX', 'accY', 'accZ', 'gyroX', 'gyroY', 'gyroZ', 'magX', 'magY', 'magZ',
+        'voltage', 'current', 'power'
     ];
 
     const availableFields = fieldsInOrder.filter(field => {
@@ -768,7 +820,10 @@ function generateTelemetryTable(rows) {
             co2: "CO₂ (ppm)",
             accX: "Ax (g)", accY: "Ay (g)", accZ: "Az (g)",
             gyroX: "Gx (°/s)", gyroY: "Gy (°/s)", gyroZ: "Gz (°/s)",
-            magX: "Mx (µT)", magY: "My (µT)", magZ: "Mz (µT)"
+            magX: "Mx (µT)", magY: "My (µT)", magZ: "Mz (µT)",
+            voltage: "Voltage (V)",
+            current: "Current (A)",
+            power: "Power (W)"
         };
         th.textContent = labels[field] || field;
         headerRow.appendChild(th);
@@ -842,7 +897,7 @@ function analyzeDataset(rows) {
 
     // Calculate derived data
     const velocity = calculateVerticalVelocity(rows);
-    const accelMag = calculateSignedAccelerationMagnitude(rows, velocity);
+    const accelMag = calculateAccelerationMagnitude(rows);
     const orientation = calculateOrientation(rows);
     const roll = orientation.map(o => o.roll);
     const pitch = orientation.map(o => o.pitch);
@@ -956,6 +1011,9 @@ function parseCSV(csvText) {
             magX: readNumber(columns, columnMap.magX),
             magY: readNumber(columns, columnMap.magY),
             magZ: readNumber(columns, columnMap.magZ),
+            voltage: readNumber(columns, columnMap.voltage),
+            current: readNumber(columns, columnMap.current),
+            power: readNumber(columns, columnMap.power),
             roll: null,
             pitch: null,
             yaw: null
@@ -1172,11 +1230,11 @@ csvFile.addEventListener("change", function () {
 
     useUploadedCsv(csvFile.files[0]);
     csvFile.value = "";
-});
+}, { once: false });
 
 document.addEventListener("dragover", function (event) {
     event.preventDefault();
-});
+}, { once: false });
 
 document.addEventListener("drop", function (event) {
     event.preventDefault();
@@ -1187,7 +1245,7 @@ document.addEventListener("drop", function (event) {
     }
 
     useUploadedCsv(files[0]);
-});
+}, { once: false });
 
 function readCSVFile(file) {
     const reader = new FileReader();
