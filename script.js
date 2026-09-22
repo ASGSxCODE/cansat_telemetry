@@ -93,6 +93,24 @@ const FORMULAS = {
         description: "Magnetic field measurements for compass heading",
         formula: "[mx, my, mz] = Raw ADC → µT",
         explanation: "Earth's magnetic field components. Used for yaw/heading calculation and orientation determination."
+    },
+    voltage: {
+        title: "Voltage",
+        description: "Battery/system voltage from power monitoring",
+        formula: "V = Raw ADC × Scale Factor",
+        explanation: "Direct measurement from INA226 power monitor. Tracks battery voltage throughout flight."
+    },
+    current: {
+        title: "Current",
+        description: "System current draw from power monitoring",
+        formula: "I = Shunt Voltage / Shunt Resistance",
+        explanation: "Direct measurement from INA226 shunt resistor. Shows instantaneous power consumption."
+    },
+    power: {
+        title: "Power",
+        description: "Instantaneous power consumption",
+        formula: "P = V × I",
+        explanation: "Product of voltage and current. Shows total energy draw at any moment. Peaks during descent/deployment."
     }
 };
 
@@ -408,6 +426,40 @@ chartsRegistry["gyroChart"] = { chart: gyroChart, title: "Gyroscope (3-Axis)" };
 
 const magChart = createChart("magChart", "µT", xyzDatasets("Mag"));
 chartsRegistry["magChart"] = { chart: magChart, title: "Magnetometer (3-Axis)" };
+
+// Power Monitoring Charts
+const voltageChart = createChart("voltageChart", "V", [{
+    label: "Voltage",
+    data: [],
+    borderColor: "#a6e3a1",
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension: 0.12
+}]);
+chartsRegistry["voltageChart"] = { chart: voltageChart, title: "Voltage" };
+
+const currentChart = createChart("currentChart", "A", [{
+    label: "Current",
+    data: [],
+    borderColor: "#f9e2af",
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension: 0.12
+}]);
+chartsRegistry["currentChart"] = { chart: currentChart, title: "Current" };
+
+const powerChart = createChart("powerChart", "W", [{
+    label: "Power",
+    data: [],
+    borderColor: "#fab387",
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension: 0.12
+}]);
+chartsRegistry["powerChart"] = { chart: powerChart, title: "Power" };
 
 // ============================================================================
 // CSV COLUMN MAPPING & PARSING
@@ -947,6 +999,18 @@ function analyzeDataset(rows) {
         rows.map(function (row) { return row.magX; }),
         rows.map(function (row) { return row.magY; }),
         rows.map(function (row) { return row.magZ; })
+    ]);
+
+    bindChart(voltageChart, labels, [
+        rows.map(function (row) { return row.voltage; })
+    ]);
+
+    bindChart(currentChart, labels, [
+        rows.map(function (row) { return row.current; })
+    ]);
+
+    bindChart(powerChart, labels, [
+        rows.map(function (row) { return row.power; })
     ]);
 
     setupPlaybackControls(rows);
