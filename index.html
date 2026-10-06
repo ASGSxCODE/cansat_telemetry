@@ -3,280 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CanSat Ground Station</title>
+    <title>GS-01 • CanSat Ground Station</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <div class="brand">
-            <p class="callsign">GS-01</p>
-            <h1>CanSat Ground Station</h1>
-            <p class="subtitle">Offline CSV analysis</p>
+<canvas id="starfield" aria-hidden="true"></canvas>
+<div class="space-grid" aria-hidden="true"></div>
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand-block">
+            <div class="eyebrow"><span class="status-dot" id="headerStatusDot"></span> GS-01 / MISSION CONTROL</div>
+            <div class="brand-row">
+                <h1>CanSat Ground Station</h1>
+                <span class="mode-pill" id="missionMode">OFFLINE ANALYSIS</span>
+            </div>
+            <p class="subtitle">Flight telemetry • replay • attitude • power analysis</p><div class="orbital-readout"><span>MISSION CLOCK</span><b id="missionClock">T+00:00:00</b><i></i><span>LINK</span><b class="link-state">LOCAL</b></div>
         </div>
-
-        <div class="header-right">
-            <label class="load-csv">
+        <div class="header-actions">
+            <div class="file-state">
+                <span class="file-state-label">DATASET</span>
+                <span id="file-name">No file loaded</span>
+            </div>
+            <label class="load-csv primary-action">
                 <input type="file" id="csvFile" accept=".csv,text/csv">
-                Upload CSV
+                <span>↑</span> Load CSV
             </label>
-            <p id="file-name">No file uploaded</p>
         </div>
     </header>
 
-    <section>
-        <h2>Mission Statistics</h2>
-        <div class="stats-grid" id="missionStats">
-            <div class="stat-card">
-                <h3>Total Flight Time</h3>
-                <p class="stat-value" id="stat-flightTime">—</p>
-            </div>
-            <div class="stat-card">
-                <h3>Max Altitude</h3>
-                <p class="stat-value" id="stat-maxAlt">—</p>
-            </div>
-            <div class="stat-card">
-                <h3>Ascent Time</h3>
-                <p class="stat-value" id="stat-ascentTime">—</p>
-            </div>
-            <div class="stat-card">
-                <h3>Descent Time</h3>
-                <p class="stat-value" id="stat-descentTime">—</p>
-            </div>
-            <div class="stat-card">
-                <h3>Max Vertical Velocity</h3>
-                <p class="stat-value" id="stat-maxVelocity">—</p>
-            </div>
-            <div class="stat-card">
-                <h3>Peak Acceleration</h3>
-                <p class="stat-value" id="stat-peakAccel">—</p>
-            </div>
-        </div>
-    </section>
+    <nav class="mission-nav" aria-label="Ground station sections">
+        <button class="nav-chip active" data-target="missionTop">⌁ OVERVIEW</button>
+        <button class="nav-chip" data-target="missionReplay">▶ REPLAY</button>
+        <button class="nav-chip" data-target="missionFlight">⌁ FLIGHT</button>
+        <button class="nav-chip" data-target="missionImu">◈ ATTITUDE</button>
+        <button class="nav-chip" data-target="missionPower">⚡ POWER</button>
+        <button class="nav-chip" data-target="missionData">▦ PACKETS</button>
+    </nav>
 
-    <section>
-        <h2>Telemetry Playback</h2>
-        <div class="playback-controls">
-            <button id="playBtn" class="play-btn">▶ Play</button>
-            <input type="range" id="timeSlider" class="time-slider" min="0" max="100" value="0">
-            <span id="playbackTime">0:00:00 / 0:00:00</span>
-            <input type="range" id="speedSlider" class="speed-slider" min="0.5" max="2" step="0.5" value="1" title="Playback speed">
-            <span id="speedLabel">1x</span>
-        </div>
-        <div id="playbackInfo" class="playback-info">
-            <p id="currentPhase">Phase: —</p>
-            <p id="currentValues">Altitude: — | Temp: — | Pressure: —</p>
-        </div>
-    </section>
+    <main>
+        <section id="missionTop" class="mission-banner" aria-label="Mission status">
+            <div class="mission-banner-main">
+                <div class="section-kicker">FLIGHT STATUS</div>
+                <div class="phase-line"><strong id="currentPhaseBadge">STANDBY</strong><span id="currentPhaseDetail">Waiting for telemetry dataset</span></div>
+                <div class="phase-track" aria-hidden="true">
+                    <span class="phase-node active" data-phase="ground">GROUND</span>
+                    <i></i><span class="phase-node" data-phase="ascent">ASCENT</span>
+                    <i></i><span class="phase-node" data-phase="apogee">APOGEE</span>
+                    <i></i><span class="phase-node" data-phase="descent">DESCENT</span>
+                    <i></i><span class="phase-node" data-phase="landed">LANDED</span>
+                </div>
+            </div>
+            <div class="mission-health">
+                <div><span class="health-dot" id="datasetHealthDot"></span><span id="datasetHealth">No telemetry</span></div>
+                <small id="dataset-meta">0 samples</small>
+            </div>
+        </section>
 
-    <section>
-        <h2>Dataset extrema</h2>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Quantity</th>
-                        <th>Maximum</th>
-                        <th>Minimum</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Pressure</td>
-                        <td id="pressure-max">—</td>
-                        <td id="pressure-min">—</td>
-                    </tr>
-                    <tr>
-                        <td>Temperature</td>
-                        <td id="temperature-max">—</td>
-                        <td id="temperature-min">—</td>
-                    </tr>
-                    <tr>
-                        <td>Altitude</td>
-                        <td id="altitude-max">—</td>
-                        <td>—</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <p id="dataset-meta" class="dataset-meta"></p>
-    </section>
+        <section class="telemetry-strip" aria-label="Current telemetry">
+            <div class="live-card featured"><span>ALTITUDE</span><strong id="liveAltitude">—</strong><small>barometric</small></div>
+            <div class="live-card"><span>VERTICAL VELOCITY</span><strong id="liveVelocity">—</strong><small>derived</small></div>
+            <div class="live-card"><span>TEMPERATURE</span><strong id="liveTemperature">—</strong><small>BMP sensor</small></div>
+            <div class="live-card"><span>PRESSURE</span><strong id="livePressure">—</strong><small>hPa</small></div>
+            <div class="live-card"><span>ACCELERATION</span><strong id="liveAccel">—</strong><small>magnitude</small></div>
+            <div class="live-card"><span>POWER</span><strong id="livePower">—</strong><small>INA226</small></div>
+        </section>
 
-    <section>
-        <h2>Environment</h2>
-        <div class="graph-grid">
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Altitude</h3>
-                    <button class="info-btn" data-formula="altitude" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="altitudeChart"></canvas>
-                </div>
+        <section id="missionReplay" class="playback-section">
+            <div class="section-heading">
+                <div><div class="section-kicker">MISSION REPLAY</div><h2>Telemetry Playback</h2></div>
+                <div class="replay-readout"><strong id="playbackTime">00:00:00 / 00:00:00</strong><span id="speedLabel">1×</span></div>
             </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Temperature</h3>
-                    <button class="info-btn" data-formula="temperature" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="temperatureChart"></canvas>
-                </div>
+            <div class="playback-panel">
+                <button id="playBtn" class="play-btn">▶ Play</button>
+                <input type="range" id="timeSlider" class="time-slider" min="0" max="100" value="0" aria-label="Telemetry playback position">
+                <div class="speed-control"><span>SPEED</span><input type="range" id="speedSlider" class="speed-slider" min="0.5" max="2" step="0.5" value="1" title="Playback speed"></div>
             </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Pressure</h3>
-                    <button class="info-btn" data-formula="pressure" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="pressureChart"></canvas>
-                </div>
+            <div class="playback-info">
+                <span id="currentPhase">Phase: —</span>
+                <span id="currentValues">Altitude: — | Temp: — | Pressure: —</span>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section>
-        <h2>Derived Data</h2>
-        <div class="graph-grid">
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Vertical Velocity</h3>
-                    <button class="info-btn" data-formula="vertical_velocity" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="velocityChart"></canvas>
-                </div>
+        <section>
+            <div class="section-heading"><div><div class="section-kicker">MISSION SUMMARY</div><h2>Flight Statistics</h2></div></div>
+            <div class="stats-grid" id="missionStats">
+                <div class="stat-card"><span>Total Flight Time</span><strong id="stat-flightTime">—</strong><small>dataset duration</small></div>
+                <div class="stat-card accent"><span>Max Altitude</span><strong id="stat-maxAlt">—</strong><small>peak barometric altitude</small></div>
+                <div class="stat-card"><span>Ascent Time</span><strong id="stat-ascentTime">—</strong><small>launch to apogee</small></div>
+                <div class="stat-card"><span>Descent Time</span><strong id="stat-descentTime">—</strong><small>apogee to landing</small></div>
+                <div class="stat-card"><span>Max Vertical Velocity</span><strong id="stat-maxVelocity">—</strong><small>absolute peak</small></div>
+                <div class="stat-card"><span>Peak Acceleration</span><strong id="stat-peakAccel">—</strong><small>resultant magnitude</small></div>
             </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Acceleration Magnitude</h3>
-                    <button class="info-btn" data-formula="accel_magnitude" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="accelMagChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <section>
-        <h2>Power Monitoring</h2>
-        <div class="graph-grid">
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Voltage</h3>
-                    <button class="info-btn" data-formula="voltage" title="Information">ℹ</button>
+        <section id="missionFlight" class="dashboard-grid">
+            <div class="section-block wide">
+                <div class="section-heading"><div><div class="section-kicker">PRIMARY FLIGHT PROFILE</div><h2>Altitude & Flight Dynamics</h2></div></div>
+                <div class="graph-card hero-chart"><div class="graph-header"><div><h3>Altitude</h3><p>Primary mission profile</p></div><button class="info-btn" data-formula="altitude" title="Information">i</button></div><div class="chart-wrap"><canvas id="altitudeChart"></canvas></div></div>
+            </div>
+            <div class="section-block side-summary">
+                <div class="section-heading"><div><div class="section-kicker">DATASET</div><h2>Extrema</h2></div></div>
+                <div class="extrema-list">
+                    <div><span>Pressure</span><b id="pressure-max">—</b><em id="pressure-min">—</em></div>
+                    <div><span>Temperature</span><b id="temperature-max">—</b><em id="temperature-min">—</em></div>
+                    <div><span>Altitude</span><b id="altitude-max">—</b><em>peak</em></div>
                 </div>
-                <div class="chart-wrap">
-                    <canvas id="voltageChart"></canvas>
+                <div class="sensor-health">
+                    <div class="section-kicker">DATA CHANNELS</div>
+                    <p><i></i> BMP / pressure & temperature</p><p><i></i> IMU / acceleration & gyro</p><p><i></i> MAG / heading</p><p><i></i> INA226 / power</p>
                 </div>
             </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Current</h3>
-                    <button class="info-btn" data-formula="current" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="currentChart"></canvas>
-                </div>
-            </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Power</h3>
-                    <button class="info-btn" data-formula="power" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="powerChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <section>
-        <h2>Orientation (Roll / Pitch / Yaw)</h2>
-        <div class="graph-grid">
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Roll / Pitch / Yaw</h3>
-                    <button class="info-btn" data-formula="orientation" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="orientationChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section><div class="section-heading"><div><div class="section-kicker">ENVIRONMENT</div><h2>Atmospheric Telemetry</h2></div></div>
+            <div class="graph-grid three"><div class="graph-card"><div class="graph-header"><div><h3>Temperature</h3><p>°C</p></div><button class="info-btn" data-formula="temperature">i</button></div><div class="chart-wrap"><canvas id="temperatureChart"></canvas></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Pressure</h3><p>hPa</p></div><button class="info-btn" data-formula="pressure">i</button></div><div class="chart-wrap"><canvas id="pressureChart"></canvas></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Vertical Velocity</h3><p>m/s</p></div><button class="info-btn" data-formula="vertical_velocity">i</button></div><div class="chart-wrap"><canvas id="velocityChart"></canvas></div></div></div>
+        </section>
 
-    <section>
-        <h2>IMU</h2>
-        <div class="graph-grid imu-grid">
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Accelerometer X / Y / Z</h3>
-                    <button class="info-btn" data-formula="accelerometer" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="accelChart"></canvas>
-                </div>
-            </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Gyroscope X / Y / Z</h3>
-                    <button class="info-btn" data-formula="gyroscope" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="gyroChart"></canvas>
-                </div>
-            </div>
-            <div class="graph-card">
-                <div class="graph-header">
-                    <h3>Magnetometer X / Y / Z</h3>
-                    <button class="info-btn" data-formula="magnetometer" title="Information">ℹ</button>
-                </div>
-                <div class="chart-wrap">
-                    <canvas id="magChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section id="missionImu"><div class="section-heading"><div><div class="section-kicker">ATTITUDE & MOTION</div><h2>Orientation / IMU</h2></div></div>
+            <div class="graph-grid two"><div class="graph-card"><div class="graph-header"><div><h3>Roll / Pitch / Yaw</h3><p>degrees</p></div><button class="info-btn" data-formula="orientation">i</button></div><div class="chart-wrap"><canvas id="orientationChart"></canvas></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Acceleration Magnitude</h3><p>g</p></div><button class="info-btn" data-formula="accel_magnitude">i</button></div><div class="chart-wrap"><canvas id="accelMagChart"></canvas></div></div></div>
+            <div class="graph-grid two"><div class="graph-card"><div class="graph-header"><div><h3>Accelerometer X / Y / Z</h3><p>g</p></div><button class="info-btn" data-formula="accelerometer">i</button></div><div class="chart-wrap"><canvas id="accelChart"></canvas></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Gyroscope X / Y / Z</h3><p>°/s</p></div><button class="info-btn" data-formula="gyroscope">i</button></div><div class="chart-wrap"><canvas id="gyroChart"></canvas></div></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Magnetometer X / Y / Z</h3><p>µT</p></div><button class="info-btn" data-formula="magnetometer">i</button></div><div class="chart-wrap"><canvas id="magChart"></canvas></div></div>
+        </section>
 
-    <section>
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <h2 style="margin: 0;">Telemetry Packets</h2>
-            <button id="toggleTelemetryView" style="
-                background: var(--accent);
-                border: none;
-                padding: 4px 8px;
-                font-size: 11px;
-                cursor: pointer;
-                border-radius: 3px;
-                color: var(--bg);
-                font-weight: 600;
-            ">Compact</button>
-        </div>
-        <div class="table-container" id="telemetryContainer" style="max-height: 400px; overflow-y: auto; margin-top: 10px;">
-            <table id="telemetryTable">
-                <thead>
-                    <tr id="telemetryHeader">
-                    </tr>
-                </thead>
-                <tbody id="telemetryBody">
-                </tbody>
-            </table>
-        </div>
-        <p id="telemetry-meta" class="dataset-meta"></p>
-    </section>
+        <section id="missionPower"><div class="section-heading"><div><div class="section-kicker">POWER BUS</div><h2>Electrical Telemetry</h2></div></div>
+            <div class="graph-grid three"><div class="graph-card"><div class="graph-header"><div><h3>Voltage</h3><p>V</p></div><button class="info-btn" data-formula="voltage">i</button></div><div class="chart-wrap"><canvas id="voltageChart"></canvas></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Current</h3><p>A</p></div><button class="info-btn" data-formula="current">i</button></div><div class="chart-wrap"><canvas id="currentChart"></canvas></div></div>
+            <div class="graph-card"><div class="graph-header"><div><h3>Power</h3><p>W</p></div><button class="info-btn" data-formula="power">i</button></div><div class="chart-wrap"><canvas id="powerChart"></canvas></div></div></div>
+        </section>
 
-    <!-- Formula Tooltip Modal -->
-    <div id="formulaModal" class="formula-modal">
-        <div class="formula-content">
-            <button class="formula-close">×</button>
-            <div id="formulaBody"></div>
-        </div>
-    </div>
+        <section id="missionData"><div class="section-heading"><div><div class="section-kicker">RAW DATA</div><h2>Telemetry Packets</h2></div><button id="toggleTelemetryView" class="compact-btn">Compact</button></div>
+            <div class="table-container" id="telemetryContainer"><table id="telemetryTable"><thead><tr id="telemetryHeader"></tr></thead><tbody id="telemetryBody"></tbody></table></div>
+            <p id="telemetry-meta" class="dataset-meta"></p>
+        </section>
+    </main>
+
+    <div id="formulaModal" class="formula-modal"><div class="formula-content"><button class="formula-close">×</button><div id="formulaBody"></div></div></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="orientation-viewer.js"></script>
     <script src="script.js"></script>
+
+<script>
+(function(){
+  const root=document.documentElement;
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const canvas=document.getElementById('starfield');
+  if(canvas){
+    const ctx=canvas.getContext('2d');
+    let stars=[],shooters=[],raf=0,w=0,h=0,px=0,py=0;
+    function resize(){w=canvas.width=window.innerWidth*devicePixelRatio;h=canvas.height=window.innerHeight*devicePixelRatio;canvas.style.width=window.innerWidth+'px';canvas.style.height=window.innerHeight+'px';ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);const n=Math.min(260,Math.max(110,Math.floor(window.innerWidth/5)));stars=Array.from({length:n},()=>({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,r:Math.random()*1.45+.2,a:Math.random()*.72+.15,s:Math.random()*.30+.025,d:Math.random()*3+0.4,t:Math.random()*6.28}));}
+    function spawnShooter(){if(reduced||Math.random()>.018)return;shooters.push({x:Math.random()*window.innerWidth*.9,y:Math.random()*window.innerHeight*.55,len:70+Math.random()*100,v:7+Math.random()*7,a:1});}
+    function draw(){ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+      for(const st of stars){if(!reduced){st.y+=st.s*(.65+st.d*.14);st.x+=px*.0006*st.d;if(st.y>window.innerHeight+3){st.y=-3;st.x=Math.random()*window.innerWidth;}}st.t+=.018*st.d;const alpha=st.a*(.65+.35*Math.sin(st.t));ctx.beginPath();ctx.fillStyle='rgba(215,241,255,'+alpha+')';ctx.arc(st.x,st.y,st.r*(.8+st.d*.08),0,Math.PI*2);ctx.fill();}
+      for(let i=shooters.length-1;i>=0;i--){const q=shooters[i];ctx.save();ctx.globalAlpha=q.a;ctx.strokeStyle='rgba(205,235,255,.9)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(q.x-q.len,q.y+q.len*.34);ctx.stroke();ctx.restore();q.x+=q.v;q.y+=q.v*.34;q.a-=.025;if(q.a<=0)shooters.splice(i,1);}
+      spawnShooter();if(!reduced)raf=requestAnimationFrame(draw);
+    }
+    resize();draw();window.addEventListener('resize',resize,{passive:true});
+    window.addEventListener('pointermove',e=>{px=(e.clientX-window.innerWidth/2);py=(e.clientY-window.innerHeight/2);document.documentElement.style.setProperty('--cosmic-x',(px*.006).toFixed(2)+'px');document.documentElement.style.setProperty('--cosmic-y',(py*.006).toFixed(2)+'px');},{passive:true});
+  }
+  document.querySelectorAll('.nav-chip').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.nav-chip').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const target=document.getElementById(btn.dataset.target);if(target)target.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});}));
+  const sections=[...document.querySelectorAll('main > section[id]')];
+  if('IntersectionObserver' in window){const io=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){const b=document.querySelector('.nav-chip[data-target="'+e.target.id+'"]');if(b){document.querySelectorAll('.nav-chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');}}});},{rootMargin:'-30% 0px -60% 0px',threshold:.01});sections.forEach(s=>io.observe(s));}
+  const clock=document.getElementById('missionClock');let start=performance.now();
+  function tick(){if(clock){const sec=Math.floor((performance.now()-start)/1000);const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');clock.textContent='T+'+h+':'+m+':'+s;}requestAnimationFrame(tick);}tick();
+  // Subtle pointer-responsive HUD lighting on desktop.
+  if(!reduced && window.matchMedia('(pointer:fine)').matches){document.querySelectorAll('.graph-card,.live-card,.stat-card').forEach(card=>{card.addEventListener('pointermove',e=>{const r=card.getBoundingClientRect();card.style.background='radial-gradient(circle at '+((e.clientX-r.left)/r.width*100)+'% '+((e.clientY-r.top)/r.height*100)+'%, rgba(69,151,193,.10), transparent 42%), linear-gradient(145deg,rgba(9,20,33,.92),rgba(4,11,20,.84))';});card.addEventListener('pointerleave',()=>card.style.background='');});}
+})();
+</script>
+</div>
 </body>
 </html>

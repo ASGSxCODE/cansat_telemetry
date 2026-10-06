@@ -28,7 +28,9 @@ let playbackState = {
     isPlaying: false,
     currentIndex: 0,
     speed: 1,
-    rows: []
+    rows: [],
+    velocities: [],
+    accelMags: []
 };
 
 // ============================================================================
@@ -712,8 +714,10 @@ function displayMissionStatistics(rows, phases, velocities, accelMags) {
 // PLAYBACK SYSTEM
 // ============================================================================
 
-function setupPlaybackControls(rows) {
+function setupPlaybackControls(rows, velocities, accelMags) {
     playbackState.rows = rows;
+    playbackState.velocities = velocities || [];
+    playbackState.accelMags = accelMags || [];
     playbackState.currentIndex = 0;
 
     const playBtn = document.getElementById("playBtn");
@@ -757,28 +761,59 @@ function setupPlaybackControls(rows) {
     });
 }
 
+function updateLiveTelemetry(row, velocity, accel) {
+    if (!row) return;
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set("liveAltitude", formatValue(row.altitude, 1, "m"));
+    set("liveVelocity", formatValue(velocity, 2, "m/s"));
+    set("liveTemperature", formatValue(row.temperature, 1, "°C"));
+    set("livePressure", formatValue(row.pressure, 1, "hPa"));
+    set("liveAccel", formatValue(accel, 2, "g"));
+    set("livePower", formatValue(row.power, 2, "W"));
+}
+
+function getPlaybackPhase(row, velocity) {
+    const altitude = row && Number.isFinite(row.altitude) ? row.altitude : 0;
+    const v = Number.isFinite(velocity) ? velocity : 0;
+    if (altitude < 5 && v <= 0.15) return "ground";
+    if (v > 0.8) return "ascent";
+    if (Math.abs(v) <= 0.8 && altitude > 5) return "apogee";
+    if (v < -0.8 && altitude > 5) return "descent";
+    return altitude <= 5 ? "landed" : "ascent";
+}
+
+function updatePhaseUI(phase, row) {
+    const badge = document.getElementById("currentPhaseBadge");
+    const detail = document.getElementById("currentPhaseDetail");
+    if (badge) badge.textContent = phase.toUpperCase();
+    if (detail) detail.textContent = row && Number.isFinite(row.altitude) ? "Altitude " + formatValue(row.altitude, 1, "m") : "Telemetry sample";
+    document.querySelectorAll(".phase-node").forEach(node => node.classList.toggle("active", node.dataset.phase === phase));
+}
+
 function updatePlaybackDisplay() {
     const row = playbackState.rows[playbackState.currentIndex];
     if (!row) return;
 
     const timeSlider = document.getElementById("timeSlider");
-    
-    // Calculate elapsed time from first sample
     const elapsedMs = (row.timeMs || 0) - (playbackState.rows[0].timeMs || 0);
     const totalMs = (playbackState.rows[playbackState.rows.length - 1].timeMs || 0) - (playbackState.rows[0].timeMs || 0);
-    
     const currentTime = formatMissionTime(elapsedMs);
     const totalTime = formatMissionTime(totalMs);
+    const velocity = playbackState.velocities[playbackState.currentIndex];
+    const accel = playbackState.accelMags[playbackState.currentIndex];
 
     document.getElementById("playbackTime").textContent = currentTime + " / " + totalTime;
     document.getElementById("currentValues").textContent =
-        "Altitude: " + formatValue(row.altitude, 1, "m") + 
-        " | Temp: " + formatValue(row.temperature, 1, "°C") + 
+        "Altitude: " + formatValue(row.altitude, 1, "m") +
+        " | Temp: " + formatValue(row.temperature, 1, "°C") +
         " | Pressure: " + formatValue(row.pressure, 1, "hPa");
 
+    const phase = getPlaybackPhase(row, velocity);
+    document.getElementById("currentPhase").textContent = "Phase: " + phase.toUpperCase();
+    updateLiveTelemetry(row, velocity, accel);
+    updatePhaseUI(phase, row);
     timeSlider.value = playbackState.currentIndex;
 
-    // SYNC 3D ORIENTATION VIEWER
     if (row.roll != null && row.pitch != null && row.yaw != null) {
         syncOrientation(row.roll, row.pitch, row.yaw);
     }
@@ -1013,7 +1048,14 @@ function analyzeDataset(rows) {
         rows.map(function (row) { return row.power; })
     ]);
 
-    setupPlaybackControls(rows);
+    setupPlaybackControls(rows, velocity, accelMag);
+    updateLiveTelemetry(rows[0], velocity[0], accelMag[0]);
+    updatePhaseUI("ground", rows[0]);
+    document.getElementById("datasetHealth").textContent = "Telemetry loaded";
+    document.getElementById("datasetHealthDot").style.background = "var(--green)";
+    document.getElementById("headerStatusDot").style.background = "var(--green)";
+    document.getElementById("headerStatusDot").style.boxShadow = "0 0 10px rgba(53,211,154,.45)";
+    document.getElementById("missionMode").textContent = "DATASET LOADED";
     generateTelemetryTable(rows);
     setupFormulaModals();
 
