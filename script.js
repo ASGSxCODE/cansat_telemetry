@@ -488,7 +488,7 @@ const COLUMN_ALIASES = {
     magX: ["magx", "mx", "magxut", "magnetometerx", "compassx", "magneticx"],
     magY: ["magy", "my", "magyut", "magnetometery", "compassy", "magneticy"],
     magZ: ["magz", "mz", "magzut", "magnetometerz", "compassz", "magneticz"],
-    voltage: ["voltage", "voltageV", "volt", "v"],
+    voltage: ["voltage", "voltagev", "volt", "v"],
     current: ["current", "currenta", "amp", "a"],
     power: ["power", "powerw", "watt", "w"]
 };
